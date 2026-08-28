@@ -331,11 +331,7 @@ function renderHistoryCards() {
         checkbox.style.height = '18px';
         checkbox.addEventListener('change', (e) => {
             if (e.target.checked) {
-                if (selectedForCompare.length >= 2) {
-                    alert("비교는 최대 2개까지만 가능합니다.");
-                    e.target.checked = false;
-                    return;
-                }
+                // 다중 비교 허용 (개수 제한 해제)
                 selectedForCompare.push(item);
             } else {
                 selectedForCompare = selectedForCompare.filter(i => i.id !== item.id);
@@ -379,12 +375,12 @@ function renderHistoryCards() {
 
 function updateCompareBtn() {
     const btn = document.getElementById('compareBtn');
-    if (selectedForCompare.length === 2) {
+    if (selectedForCompare.length >= 2) {
         btn.disabled = false;
-        btn.innerHTML = '<span class="material-symbols-rounded">bar_chart</span> 2개 비교 차트 보기';
+        btn.innerHTML = `<span class="material-symbols-rounded">bar_chart</span> ${selectedForCompare.length}개 다중 비교 차트 보기`;
     } else {
         btn.disabled = true;
-        btn.innerHTML = `<span class="material-symbols-rounded">bar_chart</span> 비교할 2개를 체크하세요 (${selectedForCompare.length}/2)`;
+        btn.innerHTML = `<span class="material-symbols-rounded">bar_chart</span> 비교할 2개 이상을 체크하세요 (${selectedForCompare.length})`;
     }
 }
 
@@ -394,31 +390,46 @@ function updateCompareBtn() {
 document.getElementById('compareBtn').addEventListener('click', openCompareModal);
 
 function openCompareModal() {
-    if (selectedForCompare.length !== 2) return;
+    if (selectedForCompare.length < 2) return;
     
     document.getElementById('compareModal').style.display = 'flex';
     
-    const item1 = selectedForCompare[0];
-    const item2 = selectedForCompare[1];
-    
-    const label1 = `${item1.billing_month.substring(0,4)}.${item1.billing_month.substring(4,6)} ${item1.room_number}호`;
-    const label2 = `${item2.billing_month.substring(0,4)}.${item2.billing_month.substring(4,6)} ${item2.room_number}호`;
+    // 차트 색상 팔레트
+    const colors = [
+        { bg: 'rgba(54, 162, 235, 0.7)', border: 'rgb(54, 162, 235)' },
+        { bg: 'rgba(255, 99, 132, 0.7)', border: 'rgb(255, 99, 132)' },
+        { bg: 'rgba(75, 192, 192, 0.7)', border: 'rgb(75, 192, 192)' },
+        { bg: 'rgba(255, 159, 64, 0.7)', border: 'rgb(255, 159, 64)' },
+        { bg: 'rgba(153, 102, 255, 0.7)', border: 'rgb(153, 102, 255)' },
+        { bg: 'rgba(255, 205, 86, 0.7)', border: 'rgb(255, 205, 86)' },
+        { bg: 'rgba(201, 203, 207, 0.7)', border: 'rgb(201, 203, 207)' }
+    ];
 
-    // 두 데이터의 모든 항목 추출
+    // 모든 선택된 데이터의 고유 항목(Labels) 추출
     const allNames = new Set();
-    item1.fee_items.forEach(f => allNames.add(f.name));
-    item2.fee_items.forEach(f => allNames.add(f.name));
+    selectedForCompare.forEach(item => {
+        item.fee_items.forEach(f => allNames.add(f.name));
+    });
     
     const labels = Array.from(allNames).sort();
     
-    const data1 = labels.map(name => {
-        const found = item1.fee_items.find(f => f.name === name);
-        return found ? found.amount : 0;
-    });
-    
-    const data2 = labels.map(name => {
-        const found = item2.fee_items.find(f => f.name === name);
-        return found ? found.amount : 0;
+    // 동적 데이터셋 생성
+    const datasets = selectedForCompare.map((item, index) => {
+        const label = `${item.billing_month.substring(0,4)}.${item.billing_month.substring(4,6)} ${item.room_number}호`;
+        const data = labels.map(name => {
+            const found = item.fee_items.find(f => f.name === name);
+            return found ? found.amount : 0;
+        });
+        
+        const color = colors[index % colors.length];
+        
+        return {
+            label: label,
+            data: data,
+            backgroundColor: color.bg,
+            borderColor: color.border,
+            borderWidth: 1
+        };
     });
 
     const ctx = document.getElementById('compareChart').getContext('2d');
@@ -431,22 +442,7 @@ function openCompareModal() {
         type: 'bar',
         data: {
             labels: labels,
-            datasets: [
-                {
-                    label: label1,
-                    data: data1,
-                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                    borderColor: 'rgb(54, 162, 235)',
-                    borderWidth: 1
-                },
-                {
-                    label: label2,
-                    data: data2,
-                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                    borderColor: 'rgb(255, 99, 132)',
-                    borderWidth: 1
-                }
-            ]
+            datasets: datasets
         },
         options: {
             responsive: true,
