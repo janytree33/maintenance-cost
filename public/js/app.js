@@ -286,9 +286,9 @@ function renderHistoryTable() {
     const roomFilter = document.getElementById('filterRoom').value;
     const monthFilter = document.getElementById('filterMonth').value;
     
+    const thead = document.querySelector('#historyTableBody').previousElementSibling;
     const tbody = document.getElementById('historyTableBody');
-    tbody.innerHTML = '';
-
+    
     let filteredData = cachedHistoryData;
 
     if (roomFilter !== 'ALL') {
@@ -299,80 +299,77 @@ function renderHistoryTable() {
     }
 
     if (filteredData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 32px; color: #8A92A3;">조건에 맞는 내역이 없습니다.</td></tr>`;
+        thead.innerHTML = `<tr><th>청구 연월</th><th>호수</th><th>총 청구 금액(원)</th></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 32px; color: #8A92A3;">조건에 맞는 내역이 없습니다.</td></tr>`;
         return;
     }
 
+    // 1. 현재 필터링된 데이터에 존재하는 모든 고유 '항목명' 추출
+    const allItemNames = new Set();
+    filteredData.forEach(record => {
+        record.fee_items.forEach(fee => {
+            allItemNames.add(fee.name);
+        });
+    });
+    
+    // 세부 항목명 배열 (정렬: 보기 좋게 가나다순, 단 주요 항목을 앞으로 뺄 수도 있지만 여기선 기본 정렬)
+    const columns = Array.from(allItemNames).sort();
+
+    // 2. 동적 테이블 헤더(Thead) 생성
+    let theadHTML = `
+        <tr>
+            <th style="min-width: 100px; position: sticky; left: 0; background-color: var(--jt-color-bg, #F5F6F8); z-index: 2;">청구 연월</th>
+            <th style="min-width: 80px; position: sticky; left: 100px; background-color: var(--jt-color-bg, #F5F6F8); z-index: 2;">호수</th>
+            <th style="min-width: 120px; text-align: right; position: sticky; left: 180px; background-color: var(--jt-color-bg, #F5F6F8); z-index: 2; border-right: 2px solid var(--jt-color-border, #E4E5E8);">총액(원)</th>
+    `;
+    columns.forEach(col => {
+        theadHTML += `<th style="text-align: right; white-space: nowrap; min-width: 130px;">${col}</th>`;
+    });
+    theadHTML += `</tr>`;
+    thead.innerHTML = theadHTML;
+
+    // 3. 동적 테이블 본문(Tbody) 생성
+    tbody.innerHTML = '';
     filteredData.forEach(item => {
-        // 총 금액 계산
         const totalAmount = item.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
         
+        // 아이템 이름을 키로, 금액을 값으로 가지는 Map 생성 (빠른 검색용)
+        const itemMap = {};
+        item.fee_items.forEach(fee => {
+            itemMap[fee.name] = fee.amount;
+        });
+        
         const tr = document.createElement('tr');
         
-        const tdMonth = document.createElement('td');
-        tdMonth.textContent = `${item.billing_month.substring(0,4)}년 ${item.billing_month.substring(4,6)}월`;
+        // 고정 컬럼들 (연월, 호수, 총액) - 가로 스크롤 시 고정되도록 스타일 추가
+        tr.innerHTML = `
+            <td style="position: sticky; left: 0; background-color: var(--jt-color-surface, #fff); z-index: 1;">${item.billing_month.substring(0,4)}년 ${item.billing_month.substring(4,6)}월</td>
+            <td style="position: sticky; left: 100px; background-color: var(--jt-color-surface, #fff); z-index: 1;">${item.room_number}호</td>
+            <td class="jt-num" style="position: sticky; left: 180px; background-color: var(--jt-color-surface, #fff); z-index: 1; font-weight: bold; color: var(--jt-color-accent, #305CDE); border-right: 2px solid var(--jt-color-border, #E4E5E8);">
+                ${totalAmount.toLocaleString()}
+            </td>
+        `;
         
-        const tdRoom = document.createElement('td');
-        tdRoom.textContent = `${item.room_number}호`;
-        
-        const tdTotal = document.createElement('td');
-        tdTotal.className = 'jt-num';
-        tdTotal.style.fontWeight = 'bold';
-        tdTotal.style.color = 'var(--jt-color-accent, #305CDE)';
-        tdTotal.textContent = totalAmount.toLocaleString();
-        
-        const tdAction = document.createElement('td');
-        tdAction.style.textAlign = 'center';
-        
-        const btn = document.createElement('button');
-        btn.className = 'btn-outline';
-        btn.innerHTML = '<span class="material-symbols-rounded" style="font-size:16px;">visibility</span> 상세 보기';
-        btn.onclick = () => openDetailModal(item);
-        
-        tdAction.appendChild(btn);
-
-        tr.appendChild(tdMonth);
-        tr.appendChild(tdRoom);
-        tr.appendChild(tdTotal);
-        tr.appendChild(tdAction);
+        // 동적 컬럼들 (세부 항목 금액)
+        columns.forEach(col => {
+            const amount = itemMap[col] || 0;
+            const td = document.createElement('td');
+            td.className = 'jt-num';
+            td.style.color = amount === 0 ? 'var(--jt-color-text-tertiary, #8A92A3)' : 'inherit';
+            td.textContent = amount === 0 ? '-' : amount.toLocaleString();
+            tr.appendChild(td);
+        });
         
         tbody.appendChild(tr);
     });
+    
+    // 가로 스크롤을 위해 테이블 래퍼에 스타일 추가
+    const tableWrap = document.querySelector('#view-history .jt-table-wrap');
+    tableWrap.style.overflowX = 'auto';
+    tableWrap.style.maxWidth = '100%';
 }
 
+// 상세 보기 모달 관련 함수는 이제 사용하지 않지만(에러 방지용 유지)
 function openDetailModal(item) {
-    document.getElementById('detailModalTitle').textContent = `${item.billing_month.substring(0,4)}년 ${item.billing_month.substring(4,6)}월 - ${item.room_number}호 상세 내역`;
-    
-    const tbody = document.getElementById('detailModalBody');
-    const tfoot = document.getElementById('detailModalFoot');
-    tbody.innerHTML = '';
-    
-    let total = 0;
-
-    item.fee_items.forEach(fee => {
-        total += fee.amount;
-        
-        const tr = document.createElement('tr');
-        const tdName = document.createElement('td');
-        tdName.textContent = fee.name;
-        
-        const tdAmount = document.createElement('td');
-        tdAmount.className = 'jt-num';
-        tdAmount.textContent = fee.amount.toLocaleString();
-        
-        tr.appendChild(tdName);
-        tr.appendChild(tdAmount);
-        tbody.appendChild(tr);
-    });
-
-    tfoot.innerHTML = `
-        <tr>
-            <td style="padding: 12px 16px;"><strong>총 청구 금액</strong></td>
-            <td class="jt-num" style="padding: 12px 16px; color: var(--jt-color-accent, #305CDE); font-size: 16px;">
-                ${total.toLocaleString()}
-            </td>
-        </tr>
-    `;
-
-    document.getElementById('detailModal').style.display = 'flex';
+    // 사용 안함
 }
