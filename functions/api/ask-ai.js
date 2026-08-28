@@ -23,7 +23,7 @@ export async function onRequestPost(context) {
         }
 
         // 3. 제미나이 API 호출 준비
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
         
         // AI에게 역할을 부여하는 프롬프트
         const systemPrompt = "당신은 관리비 이상 내역을 친절하게 분석해 주는 똑똑한 AI 비서 '제니'입니다. 전문 용어를 피하고 일반인이 이해하기 쉽게 아주 친절하고 부드러운 말투로 답변해 주세요. 대답할 때 제공된 [현재 화면의 이상 감지 내역] 데이터를 적극적으로 참고해서 구체적인 금액과 항목을 언급해 주면 좋습니다.";
