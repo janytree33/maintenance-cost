@@ -260,10 +260,13 @@ async function loadHistory() {
     renderDashboardAnalytics();
 }
 
+// --- 전역 상태 추가 ---
+let selectedFilterItems = []; // 비어있으면 전체 보기
+
 function populateFilters(data) {
     const monthSelect = document.getElementById('filterMonth');
     const roomSelect = document.getElementById('filterRoom');
-    const itemSelect = document.getElementById('filterItem');
+    const dropdown = document.getElementById('itemMultiSelectDropdown');
     
     // 월별/호수별 고유값
     const months = [...new Set(data.map(d => d.billing_month))].sort((a, b) => b.localeCompare(a));
@@ -296,36 +299,101 @@ function populateFilters(data) {
     });
     if (rooms.includes(currentRoom)) roomSelect.value = currentRoom;
 
-    // 세부 항목 필터 갱신
-    const currentItem = itemSelect.value;
-    itemSelect.innerHTML = '<option value="ALL">모든 항목 보기</option>';
+    // 세부 항목 필터(다중 선택) 갱신
+    dropdown.innerHTML = '';
+    
+    // '전체 보기' 옵션
+    const allRow = document.createElement('div');
+    allRow.style.padding = '8px 16px';
+    allRow.style.cursor = 'pointer';
+    allRow.innerHTML = `<label style="display:flex; align-items:center; cursor:pointer;"><input type="checkbox" id="chkAllItems" ${selectedFilterItems.length === 0 ? 'checked' : ''} style="margin-right:8px;"> <strong>모든 항목 보기</strong></label>`;
+    dropdown.appendChild(allRow);
+
     sortedItems.forEach(i => {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = i;
-        itemSelect.appendChild(option);
+        const row = document.createElement('div');
+        row.style.padding = '6px 16px';
+        row.style.cursor = 'pointer';
+        row.style.fontSize = '13px';
+        const isChecked = selectedFilterItems.includes(i) ? 'checked' : '';
+        row.innerHTML = `<label style="display:flex; align-items:center; cursor:pointer;"><input type="checkbox" class="chk-filter-item" value="${i}" ${isChecked} style="margin-right:8px;"> ${i}</label>`;
+        dropdown.appendChild(row);
     });
-    if (sortedItems.includes(currentItem)) itemSelect.value = currentItem;
+
+    bindMultiSelectEvents();
+}
+
+function bindMultiSelectEvents() {
+    const btn = document.getElementById('itemMultiSelectBtn');
+    const dropdown = document.getElementById('itemMultiSelectDropdown');
+    const label = document.getElementById('itemMultiSelectLabel');
+    const chkAll = document.getElementById('chkAllItems');
+    const chkItems = document.querySelectorAll('.chk-filter-item');
+
+    // 드롭다운 토글
+    btn.onclick = (e) => {
+        e.stopPropagation();
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    };
+
+    // 외부 클릭 시 닫기
+    document.addEventListener('click', (e) => {
+        if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    const updateLabel = () => {
+        if (selectedFilterItems.length === 0) {
+            label.textContent = '모든 항목 보기';
+            chkAll.checked = true;
+        } else if (selectedFilterItems.length === 1) {
+            label.textContent = selectedFilterItems[0];
+            chkAll.checked = false;
+        } else {
+            label.textContent = `${selectedFilterItems[0]} 외 ${selectedFilterItems.length - 1}건`;
+            chkAll.checked = false;
+        }
+        renderHistoryCards();
+    };
+
+    chkAll.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            selectedFilterItems = [];
+            chkItems.forEach(chk => chk.checked = false);
+            updateLabel();
+        } else {
+            e.target.checked = true; // 전체 보기는 끌 수 없음 (개별 항목을 선택하면 자동으로 꺼짐)
+        }
+    });
+
+    chkItems.forEach(chk => {
+        chk.addEventListener('change', () => {
+            selectedFilterItems = Array.from(chkItems).filter(c => c.checked).map(c => c.value);
+            updateLabel();
+        });
+    });
 }
 
 document.getElementById('filterMonth').addEventListener('change', renderHistoryCards);
 document.getElementById('filterRoom').addEventListener('change', renderHistoryCards);
-document.getElementById('filterItem').addEventListener('change', renderHistoryCards);
 
 function renderHistoryCards() {
     const monthFilter = document.getElementById('filterMonth').value;
     const roomFilter = document.getElementById('filterRoom').value;
-    const itemFilter = document.getElementById('filterItem').value;
     const container = document.getElementById('historyCardsContainer');
     
     container.innerHTML = '';
+    
+    // 체크박스 초기화
     selectedForCompare = [];
     updateCompareBtn();
 
     let filteredData = cachedHistoryData;
+    
     if (monthFilter !== 'ALL') {
         filteredData = filteredData.filter(item => item.billing_month === monthFilter);
     }
+    
     if (roomFilter !== 'ALL') {
         filteredData = filteredData.filter(item => item.room_number === roomFilter);
     }
@@ -335,16 +403,17 @@ function renderHistoryCards() {
         return;
     }
 
-    // 1. 화면에 보이는 모든 카드가 동일한 위치(열)에 항목을 배치할 수 있도록,
-    // 현재 필터링된 모든 데이터에서 '고유 항목명'을 전부 뽑아냅니다.
+    // 모든 카드의 항목을 동일한 위치에 그리기 위해 고유 항목 추출
     const allItemNames = new Set();
     filteredData.forEach(record => {
         record.fee_items.forEach(fee => {
             allItemNames.add(fee.name);
         });
     });
-    // 특정 항목만 필터링한 경우, 그 항목만 보여줌. 아니면 전체 가나다순.
-    const fixedColumns = itemFilter !== 'ALL' ? [itemFilter] : Array.from(allItemNames).sort();
+    
+    // 선택된 항목만 렌더링하거나, 전체 렌더링
+    const isFiltered = selectedFilterItems.length > 0;
+    const fixedColumns = isFiltered ? [...selectedFilterItems].sort() : Array.from(allItemNames).sort();
 
     filteredData.forEach(item => {
         const totalAmount = item.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
@@ -420,7 +489,6 @@ function renderHistoryCards() {
                 row.innerHTML = `<span style="color:#A0AABF;">${colName}</span> <span class="jt-num" style="color:#A0AABF;">-</span>`;
             } else {
                 const colorStyle = amount < 0 ? 'color: var(--jt-color-accent, #305CDE); font-weight: 500;' : '';
-                const isFiltered = itemFilter !== 'ALL';
                 row.innerHTML = `<span style="color:#5C6370; font-weight: ${isFiltered ? '600' : 'normal'};">${colName}</span> 
                 <span class="jt-num" style="${colorStyle}; font-size: ${isFiltered ? '15px' : '13px'}; font-weight: ${isFiltered ? '600' : 'normal'}; color: ${isFiltered ? '#1F2328' : 'inherit'};">${amount.toLocaleString()}</span>`;
             }

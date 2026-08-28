@@ -515,9 +515,18 @@
                             </select>
 
                             <span style="font-weight:600; font-size:14px; margin-right:8px; margin-left:16px;">비교 항목</span>
-                            <select id="filterItem" style="min-width: 160px;">
-                                <option value="ALL">모든 항목 보기</option>
-                            </select>
+                            
+                            <!-- [NEW] 다중 선택용 커스텀 드롭다운 -->
+                            <div style="position: relative; min-width: 180px;">
+                                <div id="itemMultiSelectBtn" style="height: var(--jt-control-height, 36px); border: 1px solid var(--jt-color-border, #D1D5DB); border-radius: var(--jt-r-md, 8px); padding: 0 var(--jt-space-2, 8px); font-size: 13px; color: var(--jt-color-text, #1F2328); background: #fff; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                                    <span id="itemMultiSelectLabel">모든 항목 보기</span>
+                                    <span class="material-symbols-rounded" style="font-size:18px; color: #8A92A3;">expand_more</span>
+                                </div>
+                                <div id="itemMultiSelectDropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 220px; background: #fff; border: 1px solid #E4E5E8; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-height: 250px; overflow-y: auto; z-index: 100; margin-top: 4px; padding: 8px 0;">
+                                    <!-- 체크박스 항목들이 여기에 들어갑니다 -->
+                                </div>
+                            </div>
+
                         </div>
                         
                         <button class="btn-primary" id="compareBtn" disabled>
