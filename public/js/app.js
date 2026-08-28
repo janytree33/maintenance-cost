@@ -301,9 +301,26 @@ function renderHistoryCards() {
         return;
     }
 
+    // 1. 화면에 보이는 모든 카드가 동일한 위치(열)에 항목을 배치할 수 있도록,
+    // 현재 필터링된 모든 데이터에서 '고유 항목명'을 전부 뽑아냅니다.
+    const allItemNames = new Set();
+    filteredData.forEach(record => {
+        record.fee_items.forEach(fee => {
+            allItemNames.add(fee.name);
+        });
+    });
+    // 항목을 일정한 순서로 정렬 (가나다순)
+    const fixedColumns = Array.from(allItemNames).sort();
+
     filteredData.forEach(item => {
         const totalAmount = item.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
         const titleStr = `${item.billing_month.substring(0,4)}년 ${item.billing_month.substring(4,6)}월 - ${item.room_number}호`;
+        
+        // 빠른 검색을 위한 Map 생성
+        const itemMap = {};
+        item.fee_items.forEach(fee => {
+            itemMap[fee.name] = fee.amount;
+        });
         
         const card = document.createElement('div');
         card.style.border = '1px solid var(--jt-color-border, #E4E5E8)';
@@ -359,11 +376,22 @@ function renderHistoryCards() {
         grid.style.gap = '8px 16px';
         grid.style.fontSize = '13px';
 
-        item.fee_items.forEach(fee => {
+        // item.fee_items가 아닌 고정된 fixedColumns 기준으로 전부 출력!
+        fixedColumns.forEach(colName => {
+            const amount = itemMap[colName] || 0;
             const row = document.createElement('div');
             row.style.display = 'flex';
             row.style.justifyContent = 'space-between';
-            row.innerHTML = `<span style="color:#5C6370;">${fee.name}</span> <span class="jt-num">${fee.amount.toLocaleString()}</span>`;
+            
+            // 금액이 0원인 항목은 흐리게 표시하여 눈에 덜 띄게 처리
+            if (amount === 0) {
+                row.innerHTML = `<span style="color:#A0AABF;">${colName}</span> <span class="jt-num" style="color:#A0AABF;">-</span>`;
+            } else {
+                // 마이너스 금액인 경우 빨간색이나 파란색으로 표시 가능 (일단 기본 색상 유지하되 마이너스 부호 강조)
+                const colorStyle = amount < 0 ? 'color: var(--jt-color-accent, #305CDE); font-weight: 500;' : '';
+                row.innerHTML = `<span style="color:#5C6370;">${colName}</span> <span class="jt-num" style="${colorStyle}">${amount.toLocaleString()}</span>`;
+            }
+            
             grid.appendChild(row);
         });
 
