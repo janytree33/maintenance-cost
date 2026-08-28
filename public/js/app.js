@@ -675,13 +675,11 @@ function checkAnomalies(sortedData, allRooms) {
     const alertsContainer = document.getElementById('anomalyAlertsContainer');
     alertsContainer.innerHTML = '';
     
-    // 알림들을 모아둘 배열 (나중에 내림차순 정렬하기 위함)
+    // 알림들을 모아둘 배열
     const alertList = [];
 
     allRooms.forEach(room => {
         const roomData = sortedData.filter(d => d.room_number === room);
-        
-        // 이 호수에서 과거에 한 번이라도 청구된 적 있는 항목들을 누적 저장할 Set
         const historicalItems = new Set();
         if (roomData.length > 0) {
             roomData[0].fee_items.forEach(f => historicalItems.add(f.name));
@@ -704,6 +702,8 @@ function checkAnomalies(sortedData, allRooms) {
                     const percent = Math.round(increaseRatio * 100);
                     
                     const alertEl = document.createElement('div');
+                    alertEl.className = 'anomaly-alert-item';
+                    alertEl.setAttribute('data-type', 'total');
                     alertEl.style.backgroundColor = '#FEF2F2';
                     alertEl.style.border = '1px solid #FCA5A5';
                     alertEl.style.color = '#991B1B';
@@ -738,6 +738,8 @@ function checkAnomalies(sortedData, allRooms) {
                     if (ratio >= 0.40 && diff >= 30000) {
                         const percent = Math.round(ratio * 100);
                         const alertEl = document.createElement('div');
+                        alertEl.className = 'anomaly-alert-item';
+                        alertEl.setAttribute('data-type', 'item');
                         alertEl.style.backgroundColor = '#FFFBEB';
                         alertEl.style.border = '1px solid #FDE68A';
                         alertEl.style.color = '#92400E';
@@ -754,6 +756,8 @@ function checkAnomalies(sortedData, allRooms) {
                     }
                 } else if (absPrevAmt === 0 && absCurrAmt >= 50000) {
                     const alertEl = document.createElement('div');
+                    alertEl.className = 'anomaly-alert-item';
+                    alertEl.setAttribute('data-type', 'new');
                     alertEl.style.padding = '12px 16px';
                     alertEl.style.borderRadius = '8px';
                     alertEl.style.display = 'flex';
@@ -783,15 +787,15 @@ function checkAnomalies(sortedData, allRooms) {
     });
 
     if (alertList.length > 0) {
-        // 청구 월(billing_month) 기준으로 내림차순 정렬 (최신 월이 위로 오도록)
         alertList.sort((a, b) => b.month.localeCompare(a.month));
-        
-        // 정렬된 알림들을 화면에 붙임
         alertList.forEach(item => alertsContainer.appendChild(item.el));
         
         alertsContainer.style.display = 'flex';
         alertsContainer.style.flexDirection = 'column';
         alertsContainer.style.gap = '8px';
+        
+        // 필터 버튼 클릭 이벤트 바인딩
+        bindAnomalyFilterEvents();
     } else {
         alertsContainer.style.display = 'block';
         alertsContainer.innerHTML = `<div class="empty-message" style="padding: 60px 0;">
@@ -799,6 +803,48 @@ function checkAnomalies(sortedData, allRooms) {
             이번 달에는 급등하거나 새로 추가된 청구 항목이 없습니다. ✨
         </div>`;
     }
+}
+
+function bindAnomalyFilterEvents() {
+    const btns = document.querySelectorAll('#anomalyFilterBtns button');
+    const items = document.querySelectorAll('.anomaly-alert-item');
+    
+    if (!btns || btns.length === 0) return;
+
+    // 기존 이벤트 방지를 위해 복제 방식 등으로 리스너 중복 할당 제거 (단순하게 처리)
+    btns.forEach(btn => {
+        btn.onclick = (e) => {
+            // 활성 버튼 스타일 변경
+            btns.forEach(b => {
+                b.classList.remove('active');
+                b.style.backgroundColor = 'transparent';
+                b.style.color = 'inherit';
+            });
+            const targetBtn = e.currentTarget;
+            targetBtn.classList.add('active');
+            targetBtn.style.backgroundColor = '#1F2328';
+            targetBtn.style.color = '#fff';
+
+            const filterType = targetBtn.getAttribute('data-filter');
+            
+            // 필터링 적용
+            items.forEach(item => {
+                if (filterType === 'all') {
+                    item.style.display = 'flex';
+                } else {
+                    if (item.getAttribute('data-type') === filterType) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                }
+            });
+        };
+    });
+    
+    // 초기 활성화 (전체 보기)
+    const allBtn = document.querySelector('#anomalyFilterBtns button[data-filter="all"]');
+    if (allBtn) allBtn.click();
 }
 
 function drawMonthlyTotalChart(sortedData, allMonths, allRooms) {
