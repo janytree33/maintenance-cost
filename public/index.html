@@ -11,6 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
     <!-- Supabase 클라이언트 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Chart.js 라이브러리 (비교 그래프용) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* 전역 설정 */
         body {
@@ -445,43 +447,36 @@
                 <h1 class="page-title">명세서 내역</h1>
                 
                 <div class="jt-card">
-                    <div class="filter-section" style="margin-bottom: var(--jt-space-4, 16px);">
-                        <div>
-                            <span style="font-size: 13px; font-weight: 600; margin-right: 8px;">호수</span>
-                            <select id="filterRoom">
-                                <option value="ALL">전체 호수</option>
-                                <option value="1403">1403호</option>
-                                <option value="2001">2001호</option>
-                            </select>
+                    <div class="filter-section" style="margin-bottom: var(--jt-space-4, 16px); display: flex; justify-content: space-between;">
+                        <div style="display: flex; gap: 16px;">
+                            <div>
+                                <span style="font-size: 13px; font-weight: 600; margin-right: 8px;">호수</span>
+                                <select id="filterRoom">
+                                    <option value="ALL">전체 호수</option>
+                                    <option value="1403">1403호</option>
+                                    <option value="2001">2001호</option>
+                                </select>
+                            </div>
+                            <div>
+                                <span style="font-size: 13px; font-weight: 600; margin-right: 8px;">청구 월</span>
+                                <select id="filterMonth">
+                                    <option value="ALL">전체 월</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <span style="font-size: 13px; font-weight: 600; margin-right: 8px;">청구 월</span>
-                            <select id="filterMonth">
-                                <option value="ALL">전체 월</option>
-                                <!-- 월 옵션은 자바스크립트에서 동적 생성됨 -->
-                            </select>
-                        </div>
+                        <button id="compareBtn" class="btn-primary" disabled>
+                            <span class="material-symbols-rounded">bar_chart</span> 2개 비교 차트 보기
+                        </button>
                     </div>
 
-                    <div class="jt-table-wrap">
-                        <table class="jt-table">
-                            <thead>
-                                <tr>
-                                    <th>청구 연월</th>
-                                    <th>호수</th>
-                                    <th style="text-align: right;">총 청구 금액(원)</th>
-                                    <th style="text-align: center;">상세 관리</th>
-                                </tr>
-                            </thead>
-                            <tbody id="historyTableBody">
-                                <!-- 데이터가 여기에 들어갑니다 -->
-                            </tbody>
-                        </table>
+                    <!-- 기존 테이블 래퍼 대신 카드 그리드 영역 사용 -->
+                    <div id="historyCardsContainer" style="display: flex; flex-direction: column; gap: 16px;">
+                        <!-- 카드들이 여기에 동적으로 들어갑니다 -->
                     </div>
                 </div>
             </div>
             
-            <!-- 3. 관리 설정 뷰 (준비 중) -->
+            <!-- 3. 관리 설정 뷰 -->
             <div id="view-settings" class="view-hidden">
                 <h1 class="page-title">관리 설정</h1>
                 <div class="jt-card">
@@ -539,6 +534,24 @@
             </div>
             <div class="modal-footer">
                 <button class="btn-outline" onclick="closeDetailModal()">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 비교 차트 모달 -->
+    <div class="modal-overlay" id="compareModal">
+        <div class="modal-card" style="max-width: 800px; width: 100%;">
+            <div class="modal-header">
+                <h3 id="compareModalTitle">명세서 비교 차트</h3>
+                <button style="background:none;border:none;cursor:pointer;color:#8A92A3;" onclick="closeCompareModal()">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <canvas id="compareChart" height="400"></canvas>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline" onclick="closeCompareModal()">닫기</button>
             </div>
         </div>
     </div>

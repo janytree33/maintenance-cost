@@ -231,14 +231,15 @@ function renderUploadTable(month, room, items) {
 
 
 // -----------------------------------------------------------------
-// 4. 명세서 내역 (조회 및 필터링) 로직
+// 4. 명세서 내역 (조회 및 필터링) 로직 (카드 & 비교 차트)
 // -----------------------------------------------------------------
 let cachedHistoryData = [];
+let selectedForCompare = [];
+let compareChartInstance = null;
 
 async function loadHistory() {
     if (!supabaseClient) return;
 
-    // 데이터를 모두 가져옵니다 (최신 월 순 정렬)
     const { data, error } = await supabaseClient
         .from('maintenance_fees')
         .select('*')
@@ -251,19 +252,17 @@ async function loadHistory() {
 
     cachedHistoryData = data;
     populateMonthFilter(data);
-    renderHistoryTable();
+    renderHistoryCards();
 }
 
 function populateMonthFilter(data) {
     const monthSelect = document.getElementById('filterMonth');
     const currentVal = monthSelect.value;
     
-    // 기존 옵션 지우기 (전체 월 제외)
     monthSelect.innerHTML = '<option value="ALL">전체 월</option>';
     
-    // 고유한 월 추출
     const uniqueMonths = [...new Set(data.map(item => item.billing_month))];
-    uniqueMonths.sort((a, b) => b.localeCompare(a)); // 내림차순 정렬
+    uniqueMonths.sort((a, b) => b.localeCompare(a));
 
     uniqueMonths.forEach(month => {
         const option = document.createElement('option');
@@ -272,25 +271,24 @@ function populateMonthFilter(data) {
         monthSelect.appendChild(option);
     });
     
-    // 이전에 선택했던 값이 있다면 유지
     if (uniqueMonths.includes(currentVal)) {
         monthSelect.value = currentVal;
     }
 }
 
-// 필터가 바뀔 때마다 테이블 다시 그리기
-document.getElementById('filterRoom').addEventListener('change', renderHistoryTable);
-document.getElementById('filterMonth').addEventListener('change', renderHistoryTable);
+document.getElementById('filterRoom').addEventListener('change', renderHistoryCards);
+document.getElementById('filterMonth').addEventListener('change', renderHistoryCards);
 
-function renderHistoryTable() {
+function renderHistoryCards() {
     const roomFilter = document.getElementById('filterRoom').value;
     const monthFilter = document.getElementById('filterMonth').value;
+    const container = document.getElementById('historyCardsContainer');
     
-    const thead = document.querySelector('#historyTableBody').previousElementSibling;
-    const tbody = document.getElementById('historyTableBody');
-    
-    let filteredData = cachedHistoryData;
+    container.innerHTML = '';
+    selectedForCompare = [];
+    updateCompareBtn();
 
+    let filteredData = cachedHistoryData;
     if (roomFilter !== 'ALL') {
         filteredData = filteredData.filter(item => item.room_number === roomFilter);
     }
@@ -299,77 +297,195 @@ function renderHistoryTable() {
     }
 
     if (filteredData.length === 0) {
-        thead.innerHTML = `<tr><th>청구 연월</th><th>호수</th><th>총 청구 금액(원)</th></tr>`;
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 32px; color: #8A92A3;">조건에 맞는 내역이 없습니다.</td></tr>`;
+        container.innerHTML = `<div style="text-align:center; padding: 32px; color: #8A92A3; background: #fff; border: 1px solid #E4E5E8; border-radius: 8px;">조건에 맞는 내역이 없습니다.</div>`;
         return;
     }
 
-    // 1. 현재 필터링된 데이터에 존재하는 모든 고유 '항목명' 추출
-    const allItemNames = new Set();
-    filteredData.forEach(record => {
-        record.fee_items.forEach(fee => {
-            allItemNames.add(fee.name);
-        });
-    });
-    
-    // 세부 항목명 배열 (정렬: 보기 좋게 가나다순, 단 주요 항목을 앞으로 뺄 수도 있지만 여기선 기본 정렬)
-    const columns = Array.from(allItemNames).sort();
-
-    // 2. 동적 테이블 헤더(Thead) 생성
-    let theadHTML = `
-        <tr>
-            <th style="min-width: 100px; position: sticky; left: 0; background-color: var(--jt-color-bg, #F5F6F8); z-index: 2;">청구 연월</th>
-            <th style="min-width: 80px; position: sticky; left: 100px; background-color: var(--jt-color-bg, #F5F6F8); z-index: 2;">호수</th>
-            <th style="min-width: 120px; text-align: right; position: sticky; left: 180px; background-color: var(--jt-color-bg, #F5F6F8); z-index: 2; border-right: 2px solid var(--jt-color-border, #E4E5E8);">총액(원)</th>
-    `;
-    columns.forEach(col => {
-        theadHTML += `<th style="text-align: right; white-space: nowrap; min-width: 130px;">${col}</th>`;
-    });
-    theadHTML += `</tr>`;
-    thead.innerHTML = theadHTML;
-
-    // 3. 동적 테이블 본문(Tbody) 생성
-    tbody.innerHTML = '';
     filteredData.forEach(item => {
         const totalAmount = item.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
+        const titleStr = `${item.billing_month.substring(0,4)}년 ${item.billing_month.substring(4,6)}월 - ${item.room_number}호`;
         
-        // 아이템 이름을 키로, 금액을 값으로 가지는 Map 생성 (빠른 검색용)
-        const itemMap = {};
+        const card = document.createElement('div');
+        card.style.border = '1px solid var(--jt-color-border, #E4E5E8)';
+        card.style.borderRadius = 'var(--jt-r-md, 8px)';
+        card.style.padding = 'var(--jt-space-4, 16px)';
+        card.style.backgroundColor = '#FAFAFA';
+
+        // 카드 상단 (체크박스, 제목, 총액)
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.alignItems = 'center';
+        header.style.marginBottom = '12px';
+        header.style.paddingBottom = '12px';
+        header.style.borderBottom = '1px dashed #D1D5DB';
+
+        const titleDiv = document.createElement('div');
+        titleDiv.style.display = 'flex';
+        titleDiv.style.alignItems = 'center';
+        titleDiv.style.gap = '12px';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.style.width = '18px';
+        checkbox.style.height = '18px';
+        checkbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                if (selectedForCompare.length >= 2) {
+                    alert("비교는 최대 2개까지만 가능합니다.");
+                    e.target.checked = false;
+                    return;
+                }
+                selectedForCompare.push(item);
+            } else {
+                selectedForCompare = selectedForCompare.filter(i => i.id !== item.id);
+            }
+            updateCompareBtn();
+        });
+
+        const titleText = document.createElement('strong');
+        titleText.style.fontSize = '15px';
+        titleText.textContent = titleStr;
+
+        titleDiv.appendChild(checkbox);
+        titleDiv.appendChild(titleText);
+
+        const totalText = document.createElement('div');
+        totalText.innerHTML = `<span style="font-size: 12px; color: #5C6370; margin-right: 8px;">총 청구 금액</span><strong style="color: var(--jt-color-accent, #305CDE); font-size: 16px;" class="jt-num">${totalAmount.toLocaleString()}원</strong>`;
+
+        header.appendChild(titleDiv);
+        header.appendChild(totalText);
+
+        // 카드 하단 (그리드 형태의 세부 항목)
+        const grid = document.createElement('div');
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
+        grid.style.gap = '8px 16px';
+        grid.style.fontSize = '13px';
+
         item.fee_items.forEach(fee => {
-            itemMap[fee.name] = fee.amount;
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.justifyContent = 'space-between';
+            row.innerHTML = `<span style="color:#5C6370;">${fee.name}</span> <span class="jt-num">${fee.amount.toLocaleString()}</span>`;
+            grid.appendChild(row);
         });
-        
-        const tr = document.createElement('tr');
-        
-        // 고정 컬럼들 (연월, 호수, 총액) - 가로 스크롤 시 고정되도록 스타일 추가
-        tr.innerHTML = `
-            <td style="position: sticky; left: 0; background-color: var(--jt-color-surface, #fff); z-index: 1;">${item.billing_month.substring(0,4)}년 ${item.billing_month.substring(4,6)}월</td>
-            <td style="position: sticky; left: 100px; background-color: var(--jt-color-surface, #fff); z-index: 1;">${item.room_number}호</td>
-            <td class="jt-num" style="position: sticky; left: 180px; background-color: var(--jt-color-surface, #fff); z-index: 1; font-weight: bold; color: var(--jt-color-accent, #305CDE); border-right: 2px solid var(--jt-color-border, #E4E5E8);">
-                ${totalAmount.toLocaleString()}
-            </td>
-        `;
-        
-        // 동적 컬럼들 (세부 항목 금액)
-        columns.forEach(col => {
-            const amount = itemMap[col] || 0;
-            const td = document.createElement('td');
-            td.className = 'jt-num';
-            td.style.color = amount === 0 ? 'var(--jt-color-text-tertiary, #8A92A3)' : 'inherit';
-            td.textContent = amount === 0 ? '-' : amount.toLocaleString();
-            tr.appendChild(td);
-        });
-        
-        tbody.appendChild(tr);
+
+        card.appendChild(header);
+        card.appendChild(grid);
+        container.appendChild(card);
     });
-    
-    // 가로 스크롤을 위해 테이블 래퍼에 스타일 추가
-    const tableWrap = document.querySelector('#view-history .jt-table-wrap');
-    tableWrap.style.overflowX = 'auto';
-    tableWrap.style.maxWidth = '100%';
 }
 
-// 상세 보기 모달 관련 함수는 이제 사용하지 않지만(에러 방지용 유지)
-function openDetailModal(item) {
-    // 사용 안함
+function updateCompareBtn() {
+    const btn = document.getElementById('compareBtn');
+    if (selectedForCompare.length === 2) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-rounded">bar_chart</span> 2개 비교 차트 보기';
+    } else {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-rounded">bar_chart</span> 비교할 2개를 체크하세요 (${selectedForCompare.length}/2)`;
+    }
+}
+
+// -----------------------------------------------------------------
+// 5. 차트 그리기 로직
+// -----------------------------------------------------------------
+document.getElementById('compareBtn').addEventListener('click', openCompareModal);
+
+function openCompareModal() {
+    if (selectedForCompare.length !== 2) return;
+    
+    document.getElementById('compareModal').style.display = 'flex';
+    
+    const item1 = selectedForCompare[0];
+    const item2 = selectedForCompare[1];
+    
+    const label1 = `${item1.billing_month.substring(0,4)}.${item1.billing_month.substring(4,6)} ${item1.room_number}호`;
+    const label2 = `${item2.billing_month.substring(0,4)}.${item2.billing_month.substring(4,6)} ${item2.room_number}호`;
+
+    // 두 데이터의 모든 항목 추출
+    const allNames = new Set();
+    item1.fee_items.forEach(f => allNames.add(f.name));
+    item2.fee_items.forEach(f => allNames.add(f.name));
+    
+    const labels = Array.from(allNames).sort();
+    
+    const data1 = labels.map(name => {
+        const found = item1.fee_items.find(f => f.name === name);
+        return found ? found.amount : 0;
+    });
+    
+    const data2 = labels.map(name => {
+        const found = item2.fee_items.find(f => f.name === name);
+        return found ? found.amount : 0;
+    });
+
+    const ctx = document.getElementById('compareChart').getContext('2d');
+    
+    if (compareChartInstance) {
+        compareChartInstance.destroy();
+    }
+    
+    compareChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: label1,
+                    data: data1,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgb(54, 162, 235)',
+                    borderWidth: 1
+                },
+                {
+                    label: label2,
+                    data: data2,
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                    borderColor: 'rgb(255, 99, 132)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y', // 항목이 많으므로 가로 막대 그래프 사용
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString() + '원';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.x !== null) {
+                                label += context.parsed.x.toLocaleString() + '원';
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function closeCompareModal() {
+    document.getElementById('compareModal').style.display = 'none';
+}
+
+function closeDetailModal() {
+    // 이제 안쓰지만 에러 방지용
 }
