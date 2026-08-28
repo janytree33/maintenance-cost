@@ -419,7 +419,7 @@ function updateCompareBtn() {
 }
 
 // -----------------------------------------------------------------
-// 5. 차트 그리기 로직
+// 5. 차트 그리기 로직 (비교 모달)
 // -----------------------------------------------------------------
 document.getElementById('compareBtn').addEventListener('click', openCompareModal);
 
@@ -428,88 +428,97 @@ function openCompareModal() {
     
     document.getElementById('compareModal').style.display = 'flex';
     
-    // 차트 색상 팔레트
-    const colors = [
-        { bg: 'rgba(54, 162, 235, 0.7)', border: 'rgb(54, 162, 235)' },
-        { bg: 'rgba(255, 99, 132, 0.7)', border: 'rgb(255, 99, 132)' },
-        { bg: 'rgba(75, 192, 192, 0.7)', border: 'rgb(75, 192, 192)' },
-        { bg: 'rgba(255, 159, 64, 0.7)', border: 'rgb(255, 159, 64)' },
-        { bg: 'rgba(153, 102, 255, 0.7)', border: 'rgb(153, 102, 255)' },
-        { bg: 'rgba(255, 205, 86, 0.7)', border: 'rgb(255, 205, 86)' },
-        { bg: 'rgba(201, 203, 207, 0.7)', border: 'rgb(201, 203, 207)' }
-    ];
-
     // 모든 선택된 데이터의 고유 항목(Labels) 추출
     const allNames = new Set();
     selectedForCompare.forEach(item => {
         item.fee_items.forEach(f => allNames.add(f.name));
     });
-    
-    const labels = Array.from(allNames).sort();
-    
-    // 동적 데이터셋 생성
-    const datasets = selectedForCompare.map((item, index) => {
-        const label = `${item.billing_month.substring(0,4)}.${item.billing_month.substring(4,6)} ${item.room_number}호`;
-        const data = labels.map(name => {
-            const found = item.fee_items.find(f => f.name === name);
-            return found ? found.amount : 0;
-        });
-        
-        const color = colors[index % colors.length];
-        
-        return {
-            label: label,
-            data: data,
-            backgroundColor: color.bg,
-            borderColor: color.border,
-            borderWidth: 1
-        };
-    });
+    const baseLabels = Array.from(allNames).sort();
 
-    const ctx = document.getElementById('compareChart').getContext('2d');
-    
-    if (compareChartInstance) {
-        compareChartInstance.destroy();
+    // 콤보박스 세팅
+    const select = document.getElementById('compareItemFilter');
+    const prevValue = select.value;
+    select.innerHTML = '<option value="ALL">전체 항목 보기</option>';
+    baseLabels.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+    });
+    // 이전 선택 유지 (있을 경우만)
+    if (prevValue === 'ALL' || baseLabels.includes(prevValue)) {
+        select.value = prevValue;
     }
-    
-    compareChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y', // 항목이 많으므로 가로 막대 그래프 사용
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return value.toLocaleString() + '원';
-                        }
+
+    // 차트 그리기 함수 분리
+    const drawCompareChart = () => {
+        const filterVal = select.value;
+        const labels = filterVal === 'ALL' ? baseLabels : [filterVal];
+
+        const colors = [
+            { bg: 'rgba(54, 162, 235, 0.7)', border: 'rgb(54, 162, 235)' },
+            { bg: 'rgba(255, 99, 132, 0.7)', border: 'rgb(255, 99, 132)' },
+            { bg: 'rgba(75, 192, 192, 0.7)', border: 'rgb(75, 192, 192)' },
+            { bg: 'rgba(255, 159, 64, 0.7)', border: 'rgb(255, 159, 64)' },
+            { bg: 'rgba(153, 102, 255, 0.7)', border: 'rgb(153, 102, 255)' },
+            { bg: 'rgba(255, 205, 86, 0.7)', border: 'rgb(255, 205, 86)' },
+            { bg: 'rgba(201, 203, 207, 0.7)', border: 'rgb(201, 203, 207)' }
+        ];
+
+        const datasets = selectedForCompare.map((item, index) => {
+            const label = `${item.billing_month.substring(0,4)}.${item.billing_month.substring(4,6)} ${item.room_number}호`;
+            const data = labels.map(name => {
+                const found = item.fee_items.find(f => f.name === name);
+                return found ? found.amount : 0;
+            });
+            const color = colors[index % colors.length];
+            return {
+                label: label,
+                data: data,
+                backgroundColor: color.bg,
+                borderColor: color.border,
+                borderWidth: 1
+            };
+        });
+
+        const ctx = document.getElementById('compareChart').getContext('2d');
+        if (compareChartInstance) compareChartInstance.destroy();
+        
+        compareChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: labels, datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { callback: function(value) { return value.toLocaleString() + '원'; } }
                     }
-                }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.x !== null) label += context.parsed.x.toLocaleString() + '원';
+                                return label;
                             }
-                            if (context.parsed.x !== null) {
-                                label += context.parsed.x.toLocaleString() + '원';
-                            }
-                            return label;
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    };
+
+    // 콤보박스 이벤트 바인딩
+    select.removeEventListener('change', select._changeHandler);
+    select._changeHandler = drawCompareChart;
+    select.addEventListener('change', drawCompareChart);
+
+    drawCompareChart();
 }
 
 function closeCompareModal() {

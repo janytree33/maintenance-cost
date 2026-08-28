@@ -588,8 +588,13 @@
     <!-- 비교 차트 모달 -->
     <div class="modal-overlay" id="compareModal">
         <div class="modal-card" style="max-width: 800px; width: 100%;">
-            <div class="modal-header">
-                <h3 id="compareModalTitle">명세서 비교 차트</h3>
+            <div class="modal-header" style="flex-wrap: wrap; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <h3 id="compareModalTitle" style="margin: 0;">명세서 비교 차트</h3>
+                    <select id="compareItemFilter" style="height: 28px; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 13px;">
+                        <option value="ALL">전체 항목 보기</option>
+                    </select>
+                </div>
                 <button style="background:none;border:none;cursor:pointer;color:#8A92A3;" onclick="closeCompareModal()">
                     <span class="material-symbols-rounded">close</span>
                 </button>
