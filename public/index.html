@@ -21,6 +21,7 @@
             font-family: var(--jt-font-body, Pretendard, sans-serif);
             margin: 0;
             display: flex;
+            flex-direction: column;
             height: 100vh;
             overflow: hidden;
         }
@@ -94,7 +95,7 @@
             overflow: hidden;
         }
 
-        /* 상단 헤더 */
+        /* 상단 헤더 (네비게이션 포함) */
         .top-header {
             height: 60px;
             background-color: var(--jt-color-surface, #ffffff);
@@ -104,6 +105,45 @@
             justify-content: space-between;
             padding: 0 var(--jt-space-6, 24px);
             flex-shrink: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+        }
+
+        .top-nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-item {
+            padding: 8px 16px;
+            border-radius: var(--jt-r-md, 8px);
+            cursor: pointer;
+            color: var(--jt-color-text-secondary, #5C6370);
+            transition: all 0.2s;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background-color: var(--jt-color-bg-hover, #F0F2F5);
+        }
+
+        .nav-item.active {
+            background-color: #EEF2FD;
+            color: var(--color-accent, var(--jt-color-accent, #305CDE));
+            font-weight: 600;
         }
 
         .search-bar {
@@ -356,7 +396,7 @@
     <header class="top-header">
         <div class="header-left">
             <div class="header-logo">
-                JANYTREE 관리비
+                <img src="/logo/logo-h.svg" alt="JANYTREE 관리비" style="height: 28px;">
             </div>
             <nav class="top-nav">
                 <a href="#" class="nav-item active" id="menu-dashboard">대시보드 (통계)</a>
