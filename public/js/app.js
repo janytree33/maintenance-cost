@@ -651,24 +651,29 @@ function renderDashboardAnalytics() {
     if (!cachedHistoryData || cachedHistoryData.length === 0) return;
 
     // 데이터 복사 및 정렬 (월 오름차순)
-    const sortedData = [...cachedHistoryData].sort((a, b) => a.billing_month.localeCompare(b.billing_month));
-    const allMonths = [...new Set(sortedData.map(d => d.billing_month))];
-    const allRooms = [...new Set(sortedData.map(d => d.room_number))].sort();
+    const fullSortedData = [...cachedHistoryData].sort((a, b) => a.billing_month.localeCompare(b.billing_month));
+    const allRooms = [...new Set(fullSortedData.map(d => d.room_number))].sort();
+    const allMonths = [...new Set(fullSortedData.map(d => d.billing_month))];
 
-    // 1. 이상 급등 알림 (전월 대비 총액 20% 이상 증가 시)
-    checkAnomalies(sortedData, allRooms);
+    // 1. 이상 급등 알림 (전체 데이터 기반 분석)
+    checkAnomalies(fullSortedData, allRooms);
+
+    // 차트용 데이터는 최근 12개월로 제한
+    const MAX_MONTHS = 12;
+    const recentMonths = allMonths.slice(-MAX_MONTHS);
+    const recentData = fullSortedData.filter(d => recentMonths.includes(d.billing_month));
 
     // 2. 월별 총 관리비 추이 (Grouped Bar)
-    drawMonthlyTotalChart(sortedData, allMonths, allRooms);
+    drawMonthlyTotalChart(recentData, recentMonths, allRooms);
 
     // 3. 호수별 누적 관리비 비중 (Doughnut)
-    drawRoomShareChart(sortedData, allRooms);
+    drawRoomShareChart(recentData, allRooms);
 
     // 4. 세부 항목별 추이 콤보박스 업데이트 및 렌더링
-    updateItemSelectAndDraw(sortedData, allMonths, allRooms);
+    updateItemSelectAndDraw(recentData, recentMonths, allRooms);
 
     // 5. 전체 항목 비중 누적 (Doughnut)
-    drawItemShareChart(sortedData);
+    drawItemShareChart(recentData);
 }
 
 function checkAnomalies(sortedData, allRooms) {

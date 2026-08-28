@@ -448,39 +448,37 @@
                 <!-- [NEW] 통계 차트 그리드 영역 -->
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
                     
-                    <!-- 차트 1: 월별 총 관리비 추이 -->
-                    <div class="jt-card" style="margin-bottom: 0;">
-                        <h3 style="margin-top:0; margin-bottom: 16px; font-size: 15px;">월별 총 관리비 추이</h3>
-                        <div style="height: 300px;">
+                    <div class="jt-card" style="padding: 24px;">
+                        <h3 style="margin-top: 0; margin-bottom: 24px; font-size: 15px;">월별 총 관리비 추이 (최근 12개월)</h3>
+                        <div style="position: relative; height: 350px;">
                             <canvas id="chartMonthlyTotal"></canvas>
                         </div>
                     </div>
 
-                    <!-- 차트 2: 호수별 누적 비중 -->
-                    <div class="jt-card" style="margin-bottom: 0;">
-                        <h3 style="margin-top:0; margin-bottom: 16px; font-size: 15px;">호수별 누적 관리비 비중</h3>
-                        <div style="height: 300px; display: flex; justify-content: center;">
+                    <div class="jt-card" style="padding: 24px;">
+                        <h3 style="margin-top: 0; margin-bottom: 24px; font-size: 15px;">호수별 누적 관리비 비중 (최근 12개월)</h3>
+                        <div style="position: relative; height: 350px;">
                             <canvas id="chartRoomShare"></canvas>
                         </div>
                     </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
                     
-                    <!-- 차트 3: 단일 항목 상세 추이 -->
-                    <div class="jt-card" style="margin-bottom: 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                            <h3 style="margin: 0; font-size: 15px;">세부 항목별 추이</h3>
-                            <select id="analyticsItemSelect" style="height: 28px; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 12px;">
-                                <option value="건물관리용역비">건물관리용역비</option>
-                            </select>
+                    <div class="jt-card" style="padding: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                            <h3 style="margin: 0; font-size: 15px;">세부 항목별 추이 (최근 12개월)</h3>
+                            <select id="analyticsItemSelect" style="height: 32px; border: 1px solid var(--jt-color-border); border-radius: var(--jt-r-md); font-size: 13px;"></select>
                         </div>
-                        <div style="height: 300px;">
+                        <div style="position: relative; height: 350px;">
                             <canvas id="chartItemTrend"></canvas>
                         </div>
                     </div>
 
                     <!-- 차트 4: 전체 항목 비중 -->
-                    <div class="jt-card" style="margin-bottom: 0;">
-                        <h3 style="margin-top:0; margin-bottom: 16px; font-size: 15px;">전체 항목 비중 (누적)</h3>
-                        <div style="height: 300px; display: flex; justify-content: center;">
+                    <div class="jt-card" style="padding: 24px;">
+                        <h3 style="margin-top: 0; margin-bottom: 24px; font-size: 15px;">전체 항목 비중 (최근 12개월)</h3>
+                        <div style="position: relative; height: 350px;">
                             <canvas id="chartItemShare"></canvas>
                         </div>
                     </div>
