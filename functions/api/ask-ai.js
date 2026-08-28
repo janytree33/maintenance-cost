@@ -48,8 +48,22 @@ export async function onRequestPost(context) {
         const data = await response.json();
 
         if (!response.ok) {
+            // 디버깅용: 해당 키로 접근 가능한 모델 목록 가져오기
+            let availableModelsStr = '목록 조회 실패';
+            try {
+                const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                const listData = await listRes.json();
+                if (listData.models) {
+                    availableModelsStr = listData.models.map(m => m.name.replace('models/', '')).join(', ');
+                } else {
+                    availableModelsStr = JSON.stringify(listData);
+                }
+            } catch (e) {
+                availableModelsStr = e.message;
+            }
+
             console.error("Gemini API Error:", data);
-            return new Response(JSON.stringify({ error: `AI API 호출 실패: ${data.error?.message || '알 수 없는 오류 (API 키나 할당량을 확인하세요)'}` }), {
+            return new Response(JSON.stringify({ error: `구글 서버 거절: ${data.error?.message}. [사용 가능한 모델: ${availableModelsStr}]` }), {
                 status: 500,
                 headers: { "Content-Type": "application/json" }
             });
