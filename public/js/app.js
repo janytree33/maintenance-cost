@@ -1,7 +1,7 @@
 // Supabase 설정 (제니님의 실제 프로젝트 URL과 anon 키를 입력하셔야 합니다)
 // 테스트 시에는 아래 값을 채운 후 진행해주세요.
-const SUPABASE_URL = '여기에_SUPABASE_URL을_입력하세요';
-const SUPABASE_ANON_KEY = '여기에_SUPABASE_ANON_KEY를_입력하세요';
+const SUPABASE_URL = 'https://qapmjkowevzwjyiqsnuz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhcG1qa293ZXZ6d2p5aXFzbnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMzY1MTcsImV4cCI6MjA5NDcxMjUxN30.WS6aSvUG1UYHQN0Z2erekIpv69ZPTuQ8RCcLs8lMlLc';
 
 // CDN에서 불러온 전역 변수 'supabase'와 이름이 겹치지 않게 'supabaseClient'로 변경
 let supabaseClient;
