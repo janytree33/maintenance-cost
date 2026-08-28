@@ -438,6 +438,12 @@
                                 <button class="btn-outline" data-filter="item" style="height: 32px; padding: 0 12px; font-size: 13px;">항목 급등</button>
                                 <button class="btn-outline" data-filter="new" style="height: 32px; padding: 0 12px; font-size: 13px;">신규/재청구</button>
                             </div>
+
+                            <!-- [NEW] AI에게 질문하기 버튼 -->
+                            <button id="askAiBtn" class="btn-primary" style="height: 32px; padding: 0 16px; font-size: 13px; background-color: var(--jt-color-accent, #305CDE); border: none; display: flex; align-items: center;">
+                                <span class="material-symbols-rounded" style="font-size: 16px; margin-right: 4px;">auto_awesome</span>
+                                AI에게 질문하기
+                            </button>
                         </div>
                     </div>
                     
@@ -645,6 +651,34 @@
             </div>
             <div class="modal-footer">
                 <button class="btn-outline" onclick="closeCompareModal()">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- [NEW] AI 채팅 모달 -->
+    <div class="modal-overlay" id="aiChatModal">
+        <div class="modal-card" style="max-width: 600px; width: 100%; height: 80vh; max-height: 800px; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-rounded" style="color: var(--jt-color-accent, #305CDE);">auto_awesome</span>
+                    <h3 style="margin: 0;">AI 어시스턴트</h3>
+                </div>
+                <button style="background:none;border:none;cursor:pointer;color:#8A92A3;" onclick="closeAiChatModal()">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+            <div class="modal-body" id="aiChatHistory" style="flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px; background-color: #F8FAFC;">
+                <!-- 채팅 말풍선이 여기에 동적으로 추가됩니다 -->
+                <div style="align-self: flex-start; background-color: #fff; padding: 12px 16px; border-radius: 12px; border-bottom-left-radius: 2px; max-width: 80%; border: 1px solid var(--jt-color-border); font-size: 14px; line-height: 1.5;">
+                    안녕하세요! 무엇을 도와드릴까요?<br>
+                    현재 화면에 표시된 <b>이상 감지 내역</b>에 대해 자유롭게 질문해 보세요! ✨
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--jt-color-border); display: flex; gap: 8px; align-items: center;">
+                <input type="text" id="aiChatInput" placeholder="질문을 입력하세요... (예: 이번 달 2001호 내역 요약해 줘)" style="flex-grow: 1; height: 40px; padding: 0 12px; border: 1px solid var(--jt-color-border); border-radius: var(--jt-r-md); font-size: 14px;">
+                <button class="btn-primary" id="aiChatSendBtn" style="height: 40px; padding: 0 16px; background-color: var(--jt-color-accent, #305CDE); border: none;">
+                    <span class="material-symbols-rounded" style="font-size: 20px;">send</span>
+                </button>
             </div>
         </div>
     </div>

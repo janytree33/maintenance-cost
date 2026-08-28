@@ -627,6 +627,102 @@ function closeCompareModal() {
     document.getElementById('compareModal').style.display = 'none';
 }
 
+// -----------------------------------------------------------------
+// AI 어시스턴트(제미나이) 채팅 로직
+// -----------------------------------------------------------------
+document.getElementById('askAiBtn')?.addEventListener('click', () => {
+    document.getElementById('aiChatModal').style.display = 'flex';
+});
+
+function closeAiChatModal() {
+    document.getElementById('aiChatModal').style.display = 'none';
+}
+
+const chatInput = document.getElementById('aiChatInput');
+const chatSendBtn = document.getElementById('aiChatSendBtn');
+const chatHistory = document.getElementById('aiChatHistory');
+
+function addChatMessage(message, isUser = false) {
+    const bubble = document.createElement('div');
+    bubble.style.padding = '12px 16px';
+    bubble.style.borderRadius = '12px';
+    bubble.style.maxWidth = '80%';
+    bubble.style.fontSize = '14px';
+    bubble.style.lineHeight = '1.5';
+    
+    if (isUser) {
+        bubble.style.alignSelf = 'flex-end';
+        bubble.style.backgroundColor = '#1F2328';
+        bubble.style.color = '#fff';
+        bubble.style.borderBottomRightRadius = '2px';
+        bubble.textContent = message;
+    } else {
+        bubble.style.alignSelf = 'flex-start';
+        bubble.style.backgroundColor = '#fff';
+        bubble.style.color = '#1F2328';
+        bubble.style.border = '1px solid var(--jt-color-border)';
+        bubble.style.borderBottomLeftRadius = '2px';
+        bubble.innerHTML = message; // 마크다운 등 처리를 위해 HTML 허용 가능
+    }
+    
+    chatHistory.appendChild(bubble);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
+async function sendAiMessage() {
+    const prompt = chatInput.value.trim();
+    if (!prompt) return;
+    
+    // 사용자 메시지 화면에 추가
+    addChatMessage(prompt, true);
+    chatInput.value = '';
+    
+    // 로딩 메시지
+    const loadingId = 'loading-' + Date.now();
+    const loadingBubble = document.createElement('div');
+    loadingBubble.id = loadingId;
+    loadingBubble.style.alignSelf = 'flex-start';
+    loadingBubble.style.padding = '12px 16px';
+    loadingBubble.style.fontSize = '14px';
+    loadingBubble.style.color = '#8A92A3';
+    loadingBubble.innerHTML = '<span class="material-symbols-rounded" style="animation: spin 2s linear infinite;">hourglass_empty</span> 분석 중입니다...';
+    chatHistory.appendChild(loadingBubble);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+    
+    try {
+        // 현재 화면의 '이상 감지 알림' 내용 수집
+        const alertsContainer = document.getElementById('anomalyAlertsContainer');
+        const contextText = alertsContainer ? alertsContainer.innerText : '';
+
+        // 클라우드플레어 Functions API 호출
+        const response = await fetch('/api/ask-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, context: contextText })
+        });
+        
+        const data = await response.json();
+        
+        // 로딩 제거
+        document.getElementById(loadingId)?.remove();
+        
+        if (response.ok) {
+            // 줄바꿈을 <br>로 변환하여 표시
+            addChatMessage(data.answer.replace(/\n/g, '<br>'));
+        } else {
+            addChatMessage('⚠️ 오류가 발생했습니다: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (err) {
+        document.getElementById(loadingId)?.remove();
+        addChatMessage('⚠️ 네트워크 오류가 발생했습니다. (' + err.message + ')');
+    }
+}
+
+chatSendBtn?.addEventListener('click', sendAiMessage);
+chatInput?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendAiMessage();
+});
+
 function closeDetailModal() {
     // 이제 안쓰지만 에러 방지용
 }
