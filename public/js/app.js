@@ -709,6 +709,7 @@ function checkAnomalies(sortedData, allRooms) {
                     const alertEl = document.createElement('div');
                     alertEl.className = 'anomaly-alert-item';
                     alertEl.setAttribute('data-type', 'total');
+                    alertEl.setAttribute('data-room', room);
                     alertEl.style.backgroundColor = '#FEF2F2';
                     alertEl.style.border = '1px solid #FCA5A5';
                     alertEl.style.color = '#991B1B';
@@ -745,6 +746,7 @@ function checkAnomalies(sortedData, allRooms) {
                         const alertEl = document.createElement('div');
                         alertEl.className = 'anomaly-alert-item';
                         alertEl.setAttribute('data-type', 'item');
+                        alertEl.setAttribute('data-room', room);
                         alertEl.style.backgroundColor = '#FFFBEB';
                         alertEl.style.border = '1px solid #FDE68A';
                         alertEl.style.color = '#92400E';
@@ -763,6 +765,7 @@ function checkAnomalies(sortedData, allRooms) {
                     const alertEl = document.createElement('div');
                     alertEl.className = 'anomaly-alert-item';
                     alertEl.setAttribute('data-type', 'new');
+                    alertEl.setAttribute('data-room', room);
                     alertEl.style.padding = '12px 16px';
                     alertEl.style.borderRadius = '8px';
                     alertEl.style.display = 'flex';
@@ -798,9 +801,6 @@ function checkAnomalies(sortedData, allRooms) {
         alertsContainer.style.display = 'flex';
         alertsContainer.style.flexDirection = 'column';
         alertsContainer.style.gap = '8px';
-        
-        // 필터 버튼 클릭 이벤트 바인딩
-        bindAnomalyFilterEvents();
     } else {
         alertsContainer.style.display = 'block';
         alertsContainer.innerHTML = `<div class="empty-message" style="padding: 60px 0;">
@@ -808,18 +808,55 @@ function checkAnomalies(sortedData, allRooms) {
             이번 달에는 급등하거나 새로 추가된 청구 항목이 없습니다. ✨
         </div>`;
     }
+
+    // 필터 영역 호수 콤보박스 채우기
+    const roomSelect = document.getElementById('anomalyRoomFilter');
+    const currentRoom = roomSelect.value;
+    roomSelect.innerHTML = '<option value="ALL">전체 호수</option>';
+    allRooms.forEach(r => {
+        const option = document.createElement('option');
+        option.value = r;
+        option.textContent = `${r}호`;
+        roomSelect.appendChild(option);
+    });
+    if (allRooms.includes(currentRoom)) {
+        roomSelect.value = currentRoom;
+    }
+
+    // 필터 이벤트 갱신
+    bindAnomalyFilterEvents();
 }
 
 function bindAnomalyFilterEvents() {
     const btns = document.querySelectorAll('#anomalyFilterBtns button');
+    const roomSelect = document.getElementById('anomalyRoomFilter');
     const items = document.querySelectorAll('.anomaly-alert-item');
     
     if (!btns || btns.length === 0) return;
 
-    // 기존 이벤트 방지를 위해 복제 방식 등으로 리스너 중복 할당 제거 (단순하게 처리)
+    const applyFilters = () => {
+        const activeBtn = document.querySelector('#anomalyFilterBtns button.active');
+        const filterType = activeBtn ? activeBtn.getAttribute('data-filter') : 'all';
+        const filterRoom = roomSelect.value;
+
+        let visibleCount = 0;
+        items.forEach(item => {
+            const matchType = (filterType === 'all') || (item.getAttribute('data-type') === filterType);
+            const matchRoom = (filterRoom === 'ALL') || (item.getAttribute('data-room') === filterRoom);
+            
+            if (matchType && matchRoom) {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        // 결과가 0건일 때 처리 방안 추가 가능 (현재는 그냥 모두 숨겨짐)
+    };
+
     btns.forEach(btn => {
         btn.onclick = (e) => {
-            // 활성 버튼 스타일 변경
             btns.forEach(b => {
                 b.classList.remove('active');
                 b.style.backgroundColor = 'transparent';
@@ -829,27 +866,16 @@ function bindAnomalyFilterEvents() {
             targetBtn.classList.add('active');
             targetBtn.style.backgroundColor = '#1F2328';
             targetBtn.style.color = '#fff';
-
-            const filterType = targetBtn.getAttribute('data-filter');
             
-            // 필터링 적용
-            items.forEach(item => {
-                if (filterType === 'all') {
-                    item.style.display = 'flex';
-                } else {
-                    if (item.getAttribute('data-type') === filterType) {
-                        item.style.display = 'flex';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                }
-            });
+            applyFilters();
         };
     });
-    
-    // 초기 활성화 (전체 보기)
-    const allBtn = document.querySelector('#anomalyFilterBtns button[data-filter="all"]');
-    if (allBtn) allBtn.click();
+
+    roomSelect.removeEventListener('change', applyFilters); // 중복 방지
+    roomSelect.addEventListener('change', applyFilters);
+
+    // 초기 활성화 상태 적용
+    applyFilters();
 }
 
 function drawMonthlyTotalChart(sortedData, allMonths, allRooms) {
