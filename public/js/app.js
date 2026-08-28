@@ -671,12 +671,19 @@ function checkAnomalies(sortedData, allRooms) {
 
     allRooms.forEach(room => {
         const roomData = sortedData.filter(d => d.room_number === room);
+        
+        // 이 호수에서 과거에 한 번이라도 청구된 적 있는 항목들을 누적 저장할 Set
+        const historicalItems = new Set();
+        if (roomData.length > 0) {
+            roomData[0].fee_items.forEach(f => historicalItems.add(f.name));
+        }
+
         for (let i = 1; i < roomData.length; i++) {
             const prev = roomData[i-1];
             const curr = roomData[i];
             const monthStr = `${curr.billing_month.substring(0,4)}년 ${curr.billing_month.substring(4,6)}월`;
             
-            // 1. 총액 이상 급등 감지 (20% 이상 & 5만원 이상 증가 시)
+            // 1. 총액 이상 급등 감지
             const prevTotal = prev.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
             const currTotal = curr.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
 
@@ -705,19 +712,21 @@ function checkAnomalies(sortedData, allRooms) {
                 }
             }
 
-            // 2. 세부 항목별 이상 급등 감지
+            // 2. 세부 항목별 이상 감지
             const prevItemMap = {};
             prev.fee_items.forEach(fee => prevItemMap[fee.name] = fee.amount);
 
             curr.fee_items.forEach(currFee => {
                 const prevAmt = prevItemMap[currFee.name] || 0;
                 const currAmt = currFee.amount;
+                
+                const absPrevAmt = Math.abs(prevAmt);
+                const absCurrAmt = Math.abs(currAmt);
 
-                if (prevAmt > 0) {
-                    const ratio = (currAmt - prevAmt) / prevAmt;
-                    const diff = currAmt - prevAmt;
+                if (absPrevAmt > 0) {
+                    const ratio = (absCurrAmt - absPrevAmt) / absPrevAmt;
+                    const diff = absCurrAmt - absPrevAmt;
                     
-                    // 세부 항목이 40% 이상 & 3만원 이상 급등했을 때
                     if (ratio >= 0.40 && diff >= 30000) {
                         hasAlerts = true;
                         const percent = Math.round(ratio * 100);
@@ -732,31 +741,47 @@ function checkAnomalies(sortedData, allRooms) {
                         alertEl.style.fontSize = '14px';
                         
                         alertEl.innerHTML = `<span class="material-symbols-rounded" style="margin-right: 8px; color: #D97706;">trending_up</span>
-                            <strong>[항목 급등]</strong>&nbsp; ${room}호 ${monthStr} <strong>'${currFee.name}'</strong> 금액이 전월 대비 <strong>${percent}% (${diff.toLocaleString()}원)</strong> 증가했습니다. (전월 ${prevAmt.toLocaleString()}원 ➔ 당월 ${currAmt.toLocaleString()}원)`;
+                            <strong>[항목 급등]</strong>&nbsp; ${room}호 ${monthStr} <strong>'${currFee.name}'</strong> 금액이 전월 대비 <strong>${percent}% (${diff.toLocaleString()}원)</strong> 변동했습니다. (전월 ${prevAmt.toLocaleString()}원 ➔ 당월 ${currAmt.toLocaleString()}원)`;
                         alertsContainer.appendChild(alertEl);
                     }
-                } else if (prevAmt === 0 && currAmt >= 50000) {
-                    // 전월에 없던 신규 항목이 5만원 이상 청구됐을 때
+                } else if (absPrevAmt === 0 && absCurrAmt >= 50000) {
                     hasAlerts = true;
                     const alertEl = document.createElement('div');
-                    alertEl.style.backgroundColor = '#F0FDF4';
-                    alertEl.style.border = '1px solid #86EFAC';
-                    alertEl.style.color = '#166534';
                     alertEl.style.padding = '12px 16px';
                     alertEl.style.borderRadius = '8px';
                     alertEl.style.display = 'flex';
                     alertEl.style.alignItems = 'center';
                     alertEl.style.fontSize = '14px';
-                    
-                    alertEl.innerHTML = `<span class="material-symbols-rounded" style="margin-right: 8px; color: #16A34A;">add_alert</span>
-                        <strong>[신규 청구]</strong>&nbsp; ${room}호 ${monthStr}에 전월에 없던 <strong>'${currFee.name}'</strong> 금액이 <strong>${currAmt.toLocaleString()}원</strong> 새로 청구되었습니다.`;
+
+                    if (historicalItems.has(currFee.name)) {
+                        alertEl.style.backgroundColor = '#F8FAFC';
+                        alertEl.style.border = '1px solid #CBD5E1';
+                        alertEl.style.color = '#334155';
+                        alertEl.innerHTML = `<span class="material-symbols-rounded" style="margin-right: 8px; color: #64748B;">info</span>
+                            <strong>[재청구 알림]</strong>&nbsp; ${room}호 ${monthStr}에 <strong>'${currFee.name}'</strong> 항목이 다시 청구되었습니다. (${currAmt.toLocaleString()}원)`;
+                    } else {
+                        alertEl.style.backgroundColor = '#F0FDF4';
+                        alertEl.style.border = '1px solid #86EFAC';
+                        alertEl.style.color = '#166534';
+                        alertEl.innerHTML = `<span class="material-symbols-rounded" style="margin-right: 8px; color: #16A34A;">new_releases</span>
+                            <strong>[신규 청구]</strong>&nbsp; ${room}호 ${monthStr}에 과거 내역에 없던 <strong>'${currFee.name}'</strong> 항목이 <strong>${currAmt.toLocaleString()}원</strong> 최초 청구되었습니다.`;
+                    }
                     alertsContainer.appendChild(alertEl);
                 }
+                
+                historicalItems.add(currFee.name);
             });
         }
     });
 
-    alertsContainer.style.display = hasAlerts ? 'flex' : 'none';
+    if (hasAlerts) {
+        alertsContainer.style.display = 'flex';
+        alertsContainer.style.flexDirection = 'column';
+        alertsContainer.style.gap = '8px';
+        alertsContainer.style.marginBottom = '24px';
+    } else {
+        alertsContainer.style.display = 'none';
+    }
 }
 
 function drawMonthlyTotalChart(sortedData, allMonths, allRooms) {
