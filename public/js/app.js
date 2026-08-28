@@ -674,17 +674,19 @@ function checkAnomalies(sortedData, allRooms) {
         for (let i = 1; i < roomData.length; i++) {
             const prev = roomData[i-1];
             const curr = roomData[i];
+            const monthStr = `${curr.billing_month.substring(0,4)}년 ${curr.billing_month.substring(4,6)}월`;
             
+            // 1. 총액 이상 급등 감지 (20% 이상 & 5만원 이상 증가 시)
             const prevTotal = prev.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
             const currTotal = curr.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
 
             if (prevTotal > 0) {
                 const increaseRatio = (currTotal - prevTotal) / prevTotal;
-                if (increaseRatio >= 0.20) {
+                const increaseAmt = currTotal - prevTotal;
+                
+                if (increaseRatio >= 0.20 && increaseAmt >= 50000) {
                     hasAlerts = true;
-                    const increaseAmt = currTotal - prevTotal;
                     const percent = Math.round(increaseRatio * 100);
-                    const monthStr = `${curr.billing_month.substring(0,4)}년 ${curr.billing_month.substring(4,6)}월`;
                     
                     const alertEl = document.createElement('div');
                     alertEl.style.backgroundColor = '#FEF2F2';
@@ -697,11 +699,60 @@ function checkAnomalies(sortedData, allRooms) {
                     alertEl.style.fontSize = '14px';
                     
                     alertEl.innerHTML = `<span class="material-symbols-rounded" style="margin-right: 8px; color: #DC2626;">warning</span>
-                        <strong>[이상 급등 알림]</strong>&nbsp; ${room}호의 ${monthStr} 관리비 총액이 전월 대비 <strong>${percent}% (${increaseAmt.toLocaleString()}원)</strong> 급등했습니다.`;
+                        <strong>[총액 급등]</strong>&nbsp; ${room}호의 ${monthStr} 관리비 총액이 전월 대비 <strong>${percent}% (${increaseAmt.toLocaleString()}원)</strong> 증가했습니다.`;
                     
                     alertsContainer.appendChild(alertEl);
                 }
             }
+
+            // 2. 세부 항목별 이상 급등 감지
+            const prevItemMap = {};
+            prev.fee_items.forEach(fee => prevItemMap[fee.name] = fee.amount);
+
+            curr.fee_items.forEach(currFee => {
+                const prevAmt = prevItemMap[currFee.name] || 0;
+                const currAmt = currFee.amount;
+
+                if (prevAmt > 0) {
+                    const ratio = (currAmt - prevAmt) / prevAmt;
+                    const diff = currAmt - prevAmt;
+                    
+                    // 세부 항목이 40% 이상 & 3만원 이상 급등했을 때
+                    if (ratio >= 0.40 && diff >= 30000) {
+                        hasAlerts = true;
+                        const percent = Math.round(ratio * 100);
+                        const alertEl = document.createElement('div');
+                        alertEl.style.backgroundColor = '#FFFBEB';
+                        alertEl.style.border = '1px solid #FDE68A';
+                        alertEl.style.color = '#92400E';
+                        alertEl.style.padding = '12px 16px';
+                        alertEl.style.borderRadius = '8px';
+                        alertEl.style.display = 'flex';
+                        alertEl.style.alignItems = 'center';
+                        alertEl.style.fontSize = '14px';
+                        
+                        alertEl.innerHTML = `<span class="material-symbols-rounded" style="margin-right: 8px; color: #D97706;">trending_up</span>
+                            <strong>[항목 급등]</strong>&nbsp; ${room}호 ${monthStr} <strong>'${currFee.name}'</strong> 금액이 전월 대비 <strong>${percent}% (${diff.toLocaleString()}원)</strong> 증가했습니다. (전월 ${prevAmt.toLocaleString()}원 ➔ 당월 ${currAmt.toLocaleString()}원)`;
+                        alertsContainer.appendChild(alertEl);
+                    }
+                } else if (prevAmt === 0 && currAmt >= 50000) {
+                    // 전월에 없던 신규 항목이 5만원 이상 청구됐을 때
+                    hasAlerts = true;
+                    const alertEl = document.createElement('div');
+                    alertEl.style.backgroundColor = '#F0FDF4';
+                    alertEl.style.border = '1px solid #86EFAC';
+                    alertEl.style.color = '#166534';
+                    alertEl.style.padding = '12px 16px';
+                    alertEl.style.borderRadius = '8px';
+                    alertEl.style.display = 'flex';
+                    alertEl.style.alignItems = 'center';
+                    alertEl.style.fontSize = '14px';
+                    
+                    alertEl.innerHTML = `<span class="material-symbols-rounded" style="margin-right: 8px; color: #16A34A;">add_alert</span>
+                        <strong>[신규 청구]</strong>&nbsp; ${room}호 ${monthStr}에 전월에 없던 <strong>'${currFee.name}'</strong> 금액이 <strong>${currAmt.toLocaleString()}원</strong> 새로 청구되었습니다.`;
+                    alertsContainer.appendChild(alertEl);
+                }
+            });
         }
     });
 
