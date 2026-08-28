@@ -120,10 +120,11 @@ async function parseAndSaveHTML(htmlString) {
     // 3. 관리비 상세 항목 파싱
     const bottomRightEl = doc.querySelector('.bottom_right');
     const feeItems = [];
-    const excludeWords = ['공급가액', '부 가 세', '과 세 합', '비과세합', '기타항목'];
+    const excludeWords = ['공급가액', '부 가 세', '과 세 합', '비과세합', '비 과 세', '기타항목'];
 
     if (bottomRightEl) {
-        const rows = bottomRightEl.querySelectorAll('div[style*="width:396px"], div[style*="width: 396px"]');
+        // clear:left 스타일이 지정된 div들이 실제 상세 항목 행(Row)들입니다.
+        const rows = bottomRightEl.querySelectorAll('div[style*="clear:left"], div[style*="clear: left"]');
         
         rows.forEach(row => {
             const spans = row.querySelectorAll('span');
