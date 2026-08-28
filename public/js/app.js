@@ -93,21 +93,23 @@ async function parseAndSaveHTML(htmlString) {
         throw new Error("명세서 양식이 아닙니다. (.top_left 또는 .top_right 없음)");
     }
 
-    // 연월 추출
-    const rawMonthText = topLeftEl.childNodes[0]?.textContent || topLeftEl.textContent;
+    // 연월 추출 (전체 텍스트에서 'OOOO년 O월' 형태 찾기)
+    const rawMonthText = topLeftEl.textContent;
     const monthMatch = rawMonthText.match(/(\d{4})년\s*(\d{1,2})월/);
-    let billingMonth = "알수없음";
+    let billingMonth = null;
     if (monthMatch) {
         const year = monthMatch[1];
         const month = monthMatch[2].padStart(2, '0');
         billingMonth = `${year}${month}`; // 예: 202603
-    } else {
-        billingMonth = rawMonthText.replace(/[^0-9]/g, '');
     }
 
-    // 호수 추출
+    // 호수 추출 (전체 텍스트에서 'OOOO호' 형태 찾기)
     const roomText = topRightEl.textContent;
-    const roomNumber = roomText.replace(/[^0-9]/g, '');
+    const roomMatch = roomText.match(/(\d+)호/);
+    let roomNumber = null;
+    if (roomMatch) {
+        roomNumber = roomMatch[1];
+    }
 
     if (!billingMonth || !roomNumber) {
         throw new Error("연월 또는 호수 정보를 명확히 추출하지 못했습니다.");
