@@ -99,6 +99,11 @@ document.getElementById('uploadBtn').addEventListener('click', async () => {
     // 버튼 복구
     uploadBtn.disabled = false;
     uploadBtn.innerHTML = '<span class="material-symbols-rounded">upload</span> 명세서 파싱 및 저장';
+
+    // 업로드 성공 시 즉시 통계와 내역 최신화
+    if (newCount > 0 || updateCount > 0) {
+        loadHistory();
+    }
 });
 
 function readFileAsText(file) {
@@ -253,6 +258,7 @@ async function loadHistory() {
     cachedHistoryData = data;
     populateMonthFilter(data);
     renderHistoryCards();
+    renderDashboardAnalytics();
 }
 
 function populateMonthFilter(data) {
@@ -513,3 +519,243 @@ function closeCompareModal() {
 function closeDetailModal() {
     // 이제 안쓰지만 에러 방지용
 }
+
+// -----------------------------------------------------------------
+// 6. 대시보드 통계 및 이상 급등 알림 로직
+// -----------------------------------------------------------------
+let chartInstances = {};
+
+function renderDashboardAnalytics() {
+    if (!cachedHistoryData || cachedHistoryData.length === 0) return;
+
+    // 데이터 복사 및 정렬 (월 오름차순)
+    const sortedData = [...cachedHistoryData].sort((a, b) => a.billing_month.localeCompare(b.billing_month));
+    const allMonths = [...new Set(sortedData.map(d => d.billing_month))];
+    const allRooms = [...new Set(sortedData.map(d => d.room_number))].sort();
+
+    // 1. 이상 급등 알림 (전월 대비 총액 20% 이상 증가 시)
+    checkAnomalies(sortedData, allRooms);
+
+    // 2. 월별 총 관리비 추이 (Grouped Bar)
+    drawMonthlyTotalChart(sortedData, allMonths, allRooms);
+
+    // 3. 호수별 누적 관리비 비중 (Doughnut)
+    drawRoomShareChart(sortedData, allRooms);
+
+    // 4. 세부 항목별 추이 콤보박스 업데이트 및 렌더링
+    updateItemSelectAndDraw(sortedData, allMonths, allRooms);
+
+    // 5. 전체 항목 비중 누적 (Doughnut)
+    drawItemShareChart(sortedData);
+}
+
+function checkAnomalies(sortedData, allRooms) {
+    const alertsContainer = document.getElementById('anomalyAlertsContainer');
+    alertsContainer.innerHTML = '';
+    let hasAlerts = false;
+
+    allRooms.forEach(room => {
+        const roomData = sortedData.filter(d => d.room_number === room);
+        for (let i = 1; i < roomData.length; i++) {
+            const prev = roomData[i-1];
+            const curr = roomData[i];
+            
+            const prevTotal = prev.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
+            const currTotal = curr.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
+
+            if (prevTotal > 0) {
+                const increaseRatio = (currTotal - prevTotal) / prevTotal;
+                if (increaseRatio >= 0.20) {
+                    hasAlerts = true;
+                    const increaseAmt = currTotal - prevTotal;
+                    const percent = Math.round(increaseRatio * 100);
+                    const monthStr = `${curr.billing_month.substring(0,4)}년 ${curr.billing_month.substring(4,6)}월`;
+                    
+                    const alertEl = document.createElement('div');
+                    alertEl.style.backgroundColor = '#FEF2F2';
+                    alertEl.style.border = '1px solid #FCA5A5';
+                    alertEl.style.color = '#991B1B';
+                    alertEl.style.padding = '12px 16px';
+                    alertEl.style.borderRadius = '8px';
+                    alertEl.style.display = 'flex';
+                    alertEl.style.alignItems = 'center';
+                    alertEl.style.fontSize = '14px';
+                    
+                    alertEl.innerHTML = `<span class="material-symbols-rounded" style="margin-right: 8px; color: #DC2626;">warning</span>
+                        <strong>[이상 급등 알림]</strong>&nbsp; ${room}호의 ${monthStr} 관리비 총액이 전월 대비 <strong>${percent}% (${increaseAmt.toLocaleString()}원)</strong> 급등했습니다.`;
+                    
+                    alertsContainer.appendChild(alertEl);
+                }
+            }
+        }
+    });
+
+    alertsContainer.style.display = hasAlerts ? 'flex' : 'none';
+}
+
+function drawMonthlyTotalChart(sortedData, allMonths, allRooms) {
+    const ctx = document.getElementById('chartMonthlyTotal').getContext('2d');
+    if (chartInstances['monthlyTotal']) chartInstances['monthlyTotal'].destroy();
+
+    const colors = ['rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)', 'rgba(75, 192, 192, 0.7)'];
+
+    const datasets = allRooms.map((room, idx) => {
+        const data = allMonths.map(month => {
+            const record = sortedData.find(d => d.room_number === room && d.billing_month === month);
+            return record ? record.fee_items.reduce((sum, fee) => sum + fee.amount, 0) : 0;
+        });
+        return {
+            label: `${room}호`,
+            data: data,
+            backgroundColor: colors[idx % colors.length]
+        };
+    });
+
+    const labels = allMonths.map(m => `${m.substring(2,4)}년 ${m.substring(4,6)}월`);
+
+    chartInstances['monthlyTotal'] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+function drawRoomShareChart(sortedData, allRooms) {
+    const ctx = document.getElementById('chartRoomShare').getContext('2d');
+    if (chartInstances['roomShare']) chartInstances['roomShare'].destroy();
+
+    const data = allRooms.map(room => {
+        const roomData = sortedData.filter(d => d.room_number === room);
+        return roomData.reduce((sum, item) => sum + item.fee_items.reduce((s, f) => s + f.amount, 0), 0);
+    });
+
+    chartInstances['roomShare'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: allRooms.map(r => `${r}호`),
+            datasets: [{
+                data: data,
+                backgroundColor: ['rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)', 'rgba(255, 205, 86, 0.7)']
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
+
+function updateItemSelectAndDraw(sortedData, allMonths, allRooms) {
+    const select = document.getElementById('analyticsItemSelect');
+    
+    // 항목 수집
+    const allItemNames = new Set();
+    sortedData.forEach(record => record.fee_items.forEach(fee => allItemNames.add(fee.name)));
+    const items = Array.from(allItemNames).sort();
+
+    // 기존 선택값 유지
+    const currentVal = select.value;
+    select.innerHTML = '';
+    items.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item;
+        option.textContent = item;
+        select.appendChild(option);
+    });
+    if (items.includes(currentVal)) select.value = currentVal;
+    else if (items.length > 0) select.value = items[0];
+
+    // 그리기 및 이벤트 바인딩
+    const drawItemTrend = () => {
+        const selectedItem = select.value;
+        const ctx = document.getElementById('chartItemTrend').getContext('2d');
+        if (chartInstances['itemTrend']) chartInstances['itemTrend'].destroy();
+
+        const colors = ['rgba(54, 162, 235, 1)', 'rgba(255, 99, 132, 1)'];
+        const datasets = allRooms.map((room, idx) => {
+            const data = allMonths.map(month => {
+                const record = sortedData.find(d => d.room_number === room && d.billing_month === month);
+                if (!record) return 0;
+                const fee = record.fee_items.find(f => f.name === selectedItem);
+                return fee ? fee.amount : 0;
+            });
+            return {
+                label: `${room}호`,
+                data: data,
+                borderColor: colors[idx % colors.length],
+                backgroundColor: colors[idx % colors.length],
+                tension: 0.1,
+                fill: false
+            };
+        });
+
+        const labels = allMonths.map(m => `${m.substring(4,6)}월`);
+
+        chartInstances['itemTrend'] = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    };
+
+    // 중복 바인딩 방지
+    select.removeEventListener('change', select._changeHandler);
+    select._changeHandler = drawItemTrend;
+    select.addEventListener('change', drawItemTrend);
+    
+    drawItemTrend();
+}
+
+function drawItemShareChart(sortedData) {
+    const ctx = document.getElementById('chartItemShare').getContext('2d');
+    if (chartInstances['itemShare']) chartInstances['itemShare'].destroy();
+
+    const itemTotals = {};
+    sortedData.forEach(record => {
+        record.fee_items.forEach(fee => {
+            if (fee.amount > 0) { // 마이너스 항목은 원형 차트에서 제외하거나 별도 처리
+                itemTotals[fee.name] = (itemTotals[fee.name] || 0) + fee.amount;
+            }
+        });
+    });
+
+    // 상위 5개 항목만 뽑고 나머지는 '기타'로 묶기
+    const sortedItems = Object.entries(itemTotals).sort((a, b) => b[1] - a[1]);
+    const topItems = sortedItems.slice(0, 5);
+    const otherSum = sortedItems.slice(5).reduce((sum, [, amt]) => sum + amt, 0);
+
+    const labels = topItems.map(i => i[0]);
+    const data = topItems.map(i => i[1]);
+    
+    if (otherSum > 0) {
+        labels.push('기타');
+        data.push(otherSum);
+    }
+
+    chartInstances['itemShare'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)',
+                    'rgba(255, 205, 86, 0.7)', 'rgba(75, 192, 192, 0.7)',
+                    'rgba(153, 102, 255, 0.7)', 'rgba(201, 203, 207, 0.7)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right' }
+            }
+        }
+    });
+}
+
+// 앱 초기화
+window.addEventListener('DOMContentLoaded', () => {
+    loadHistory(); // 데이터를 먼저 불러오고 렌더링
+});
