@@ -352,62 +352,30 @@
 </head>
 <body>
 
-    <!-- 좌측 사이드바 -->
-    <aside class="sidebar">
-        <div class="sidebar-logo">
-            <span>JANYTREE 관리비</span>
+    <!-- 상단 헤더 (네비게이션 통합) -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="header-logo">
+                JANYTREE 관리비
+            </div>
+            <nav class="top-nav">
+                <a href="#" class="nav-item active" id="menu-dashboard">대시보드 (통계)</a>
+                <a href="#" class="nav-item" id="menu-history">명세서 내역</a>
+            </nav>
         </div>
-        <nav class="sidebar-menu">
-            <a href="#" class="menu-item active" id="menu-dashboard">
-                <span class="material-symbols-rounded">dashboard</span>
-                대시보드
-            </a>
-            <a href="#" class="menu-item" id="menu-history">
-                <span class="material-symbols-rounded">description</span>
-                명세서 내역
-            </a>
-            <a href="#" class="menu-item" id="menu-settings">
-                <span class="material-symbols-rounded">settings</span>
-                관리 설정
-            </a>
-        </nav>
-    </aside>
+        <div class="header-actions">
+            <button title="다크모드">
+                <span class="material-symbols-rounded">dark_mode</span>
+            </button>
+            <button title="알림">
+                <span class="material-symbols-rounded">notifications</span>
+            </button>
+        </div>
+    </header>
 
-    <!-- 우측 영역 -->
-    <div class="main-wrapper">
-        <!-- 상단 헤더 -->
-        <header class="top-header">
-            <div class="search-bar">
-                <span class="material-symbols-rounded">search</span>
-                <input type="text" placeholder="문서·양식·기록 검색">
-            </div>
-            <div class="header-actions">
-                <button title="비밀번호 변경" class="btn-outline" style="border-radius: 20px; padding: 2px 10px; height:28px;">
-                    <span class="material-symbols-rounded" style="font-size:14px; margin-right:4px;">key</span>
-                    비밀번호 변경
-                </button>
-                <button title="AI 연동" class="btn-outline" style="border-radius: 20px; padding: 2px 10px; height:28px;">
-                    <span class="material-symbols-rounded" style="font-size:14px; margin-right:4px;">magic_button</span>
-                    AI 연동
-                </button>
-                <button title="다크모드">
-                    <span class="material-symbols-rounded">dark_mode</span>
-                </button>
-                <button title="알림">
-                    <span class="material-symbols-rounded">notifications</span>
-                </button>
-                <div class="user-profile">
-                    <div>
-                        <strong>제니</strong><br>
-                        <span style="color:#8A92A3; font-size:11px;">관리자</span>
-                    </div>
-                    <span class="material-symbols-rounded" style="font-size:28px; color:#D1D5DB;">account_circle</span>
-                </div>
-            </div>
-        </header>
-
-        <!-- 메인 컨텐츠 영역 -->
-        <main class="content-area">
+    <!-- 우측 메인 영역 래퍼 제거 (body 직속으로 content-area 배치) -->
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="content-area">
             
             <!-- 1. 대시보드 뷰 (통계 & 업로드) -->
             <div id="view-dashboard">
@@ -492,27 +460,28 @@
             <!-- 2. 명세서 내역 뷰 (조회) -->
             <div id="view-history" class="view-hidden">
                 <h1 class="page-title">명세서 내역</h1>
-                
-                <div class="jt-card">
-                    <div class="filter-section" style="margin-bottom: var(--jt-space-4, 16px); display: flex; justify-content: space-between;">
-                        <div style="display: flex; gap: 16px;">
-                            <div>
-                                <span style="font-size: 13px; font-weight: 600; margin-right: 8px;">호수</span>
-                                <select id="filterRoom">
-                                    <option value="ALL">전체 호수</option>
-                                    <option value="1403">1403호</option>
-                                    <option value="2001">2001호</option>
-                                </select>
-                            </div>
-                            <div>
-                                <span style="font-size: 13px; font-weight: 600; margin-right: 8px;">청구 월</span>
-                                <select id="filterMonth">
-                                    <option value="ALL">전체 월</option>
-                                </select>
-                            </div>
+                <div class="jt-card" style="margin-bottom: 24px; padding: 16px 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div class="filter-section">
+                            <span style="font-weight:600; font-size:14px; margin-right:8px;">호수</span>
+                            <select id="filterRoom">
+                                <option value="ALL">전체 호수</option>
+                            </select>
+                            
+                            <span style="font-weight:600; font-size:14px; margin-right:8px; margin-left:16px;">청구 월</span>
+                            <select id="filterMonth">
+                                <option value="ALL">전체 월</option>
+                            </select>
+
+                            <span style="font-weight:600; font-size:14px; margin-right:8px; margin-left:16px;">비교 항목</span>
+                            <select id="filterItem" style="min-width: 160px;">
+                                <option value="ALL">모든 항목 보기</option>
+                            </select>
                         </div>
-                        <button id="compareBtn" class="btn-primary" disabled>
-                            <span class="material-symbols-rounded">bar_chart</span> 2개 비교 차트 보기
+                        
+                        <button class="btn-primary" id="compareBtn" disabled>
+                            <span class="material-symbols-rounded">bar_chart</span> 
+                            비교할 2개 이상을 체크하세요 (0)
                         </button>
                     </div>
 

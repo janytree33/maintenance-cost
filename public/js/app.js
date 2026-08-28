@@ -9,19 +9,18 @@ if (SUPABASE_URL !== '여기에_SUPABASE_URL을_입력하세요') {
 // -----------------------------------------------------------------
 // 1. 네비게이션(화면 전환) 로직
 // -----------------------------------------------------------------
-document.getElementById('menu-dashboard').addEventListener('click', (e) => switchView(e, 'view-dashboard'));
+document.getElementById('menu-dashboard').addEventListener('click', (e) => { e.preventDefault(); switchView('view-dashboard'); });
 document.getElementById('menu-history').addEventListener('click', (e) => {
-    switchView(e, 'view-history');
+    e.preventDefault();
+    switchView('view-history');
     loadHistory(); // 화면을 전환할 때 DB에서 데이터를 불러옵니다.
 });
-document.getElementById('menu-settings').addEventListener('click', (e) => switchView(e, 'view-settings'));
 
-function switchView(event, viewId) {
-    if (event) event.preventDefault();
-    
-    // 사이드바 메뉴 활성화 변경
-    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-    if (event) event.currentTarget.classList.add('active');
+function switchView(viewId) {
+    // 상단 네비게이션 활성화 변경
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const menuId = viewId === 'view-dashboard' ? 'menu-dashboard' : 'menu-history';
+    document.getElementById(menuId)?.classList.add('active');
 
     // 뷰 숨기기 및 보이기
     document.getElementById('view-dashboard').classList.add('view-hidden');
@@ -256,38 +255,67 @@ async function loadHistory() {
     }
 
     cachedHistoryData = data;
-    populateMonthFilter(data);
+    populateFilters(data);
     renderHistoryCards();
     renderDashboardAnalytics();
 }
 
-function populateMonthFilter(data) {
+function populateFilters(data) {
     const monthSelect = document.getElementById('filterMonth');
-    const currentVal = monthSelect.value;
+    const roomSelect = document.getElementById('filterRoom');
+    const itemSelect = document.getElementById('filterItem');
     
-    monthSelect.innerHTML = '<option value="ALL">전체 월</option>';
+    // 월별/호수별 고유값
+    const months = [...new Set(data.map(d => d.billing_month))].sort((a, b) => b.localeCompare(a));
+    const rooms = [...new Set(data.map(d => d.room_number))].sort();
     
-    const uniqueMonths = [...new Set(data.map(item => item.billing_month))];
-    uniqueMonths.sort((a, b) => b.localeCompare(a));
+    // 세부 항목 고유값
+    const items = new Set();
+    data.forEach(d => d.fee_items.forEach(f => items.add(f.name)));
+    const sortedItems = Array.from(items).sort();
 
-    uniqueMonths.forEach(month => {
+    // 월 필터 갱신
+    const currentMonth = monthSelect.value;
+    monthSelect.innerHTML = '<option value="ALL">전체 월</option>';
+    months.forEach(m => {
         const option = document.createElement('option');
-        option.value = month;
-        option.textContent = `${month.substring(0,4)}년 ${month.substring(4,6)}월`;
+        option.value = m;
+        option.textContent = `${m.substring(0,4)}년 ${m.substring(4,6)}월`;
         monthSelect.appendChild(option);
     });
-    
-    if (uniqueMonths.includes(currentVal)) {
-        monthSelect.value = currentVal;
-    }
+    if (months.includes(currentMonth)) monthSelect.value = currentMonth;
+
+    // 호수 필터 갱신
+    const currentRoom = roomSelect.value;
+    roomSelect.innerHTML = '<option value="ALL">전체 호수</option>';
+    rooms.forEach(r => {
+        const option = document.createElement('option');
+        option.value = r;
+        option.textContent = `${r}호`;
+        roomSelect.appendChild(option);
+    });
+    if (rooms.includes(currentRoom)) roomSelect.value = currentRoom;
+
+    // 세부 항목 필터 갱신
+    const currentItem = itemSelect.value;
+    itemSelect.innerHTML = '<option value="ALL">모든 항목 보기</option>';
+    sortedItems.forEach(i => {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = i;
+        itemSelect.appendChild(option);
+    });
+    if (sortedItems.includes(currentItem)) itemSelect.value = currentItem;
 }
 
-document.getElementById('filterRoom').addEventListener('change', renderHistoryCards);
 document.getElementById('filterMonth').addEventListener('change', renderHistoryCards);
+document.getElementById('filterRoom').addEventListener('change', renderHistoryCards);
+document.getElementById('filterItem').addEventListener('change', renderHistoryCards);
 
 function renderHistoryCards() {
-    const roomFilter = document.getElementById('filterRoom').value;
     const monthFilter = document.getElementById('filterMonth').value;
+    const roomFilter = document.getElementById('filterRoom').value;
+    const itemFilter = document.getElementById('filterItem').value;
     const container = document.getElementById('historyCardsContainer');
     
     container.innerHTML = '';
@@ -295,11 +323,11 @@ function renderHistoryCards() {
     updateCompareBtn();
 
     let filteredData = cachedHistoryData;
-    if (roomFilter !== 'ALL') {
-        filteredData = filteredData.filter(item => item.room_number === roomFilter);
-    }
     if (monthFilter !== 'ALL') {
         filteredData = filteredData.filter(item => item.billing_month === monthFilter);
+    }
+    if (roomFilter !== 'ALL') {
+        filteredData = filteredData.filter(item => item.room_number === roomFilter);
     }
 
     if (filteredData.length === 0) {
@@ -315,8 +343,8 @@ function renderHistoryCards() {
             allItemNames.add(fee.name);
         });
     });
-    // 항목을 일정한 순서로 정렬 (가나다순)
-    const fixedColumns = Array.from(allItemNames).sort();
+    // 특정 항목만 필터링한 경우, 그 항목만 보여줌. 아니면 전체 가나다순.
+    const fixedColumns = itemFilter !== 'ALL' ? [itemFilter] : Array.from(allItemNames).sort();
 
     filteredData.forEach(item => {
         const totalAmount = item.fee_items.reduce((sum, fee) => sum + fee.amount, 0);
@@ -382,20 +410,19 @@ function renderHistoryCards() {
         grid.style.gap = '8px 16px';
         grid.style.fontSize = '13px';
 
-        // item.fee_items가 아닌 고정된 fixedColumns 기준으로 전부 출력!
         fixedColumns.forEach(colName => {
             const amount = itemMap[colName] || 0;
             const row = document.createElement('div');
             row.style.display = 'flex';
             row.style.justifyContent = 'space-between';
             
-            // 금액이 0원인 항목은 흐리게 표시하여 눈에 덜 띄게 처리
             if (amount === 0) {
                 row.innerHTML = `<span style="color:#A0AABF;">${colName}</span> <span class="jt-num" style="color:#A0AABF;">-</span>`;
             } else {
-                // 마이너스 금액인 경우 빨간색이나 파란색으로 표시 가능 (일단 기본 색상 유지하되 마이너스 부호 강조)
                 const colorStyle = amount < 0 ? 'color: var(--jt-color-accent, #305CDE); font-weight: 500;' : '';
-                row.innerHTML = `<span style="color:#5C6370;">${colName}</span> <span class="jt-num" style="${colorStyle}">${amount.toLocaleString()}</span>`;
+                const isFiltered = itemFilter !== 'ALL';
+                row.innerHTML = `<span style="color:#5C6370; font-weight: ${isFiltered ? '600' : 'normal'};">${colName}</span> 
+                <span class="jt-num" style="${colorStyle}; font-size: ${isFiltered ? '15px' : '13px'}; font-weight: ${isFiltered ? '600' : 'normal'}; color: ${isFiltered ? '#1F2328' : 'inherit'};">${amount.toLocaleString()}</span>`;
             }
             
             grid.appendChild(row);
