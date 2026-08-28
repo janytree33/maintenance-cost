@@ -559,6 +559,17 @@ function closeDetailModal() {
 // -----------------------------------------------------------------
 // 6. 대시보드 통계 및 이상 급등 알림 로직
 // -----------------------------------------------------------------
+Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels', {
+    color: '#333',
+    font: { weight: 'bold', size: 11 },
+    formatter: function(value) {
+        if (value === 0) return '';
+        if (value >= 10000) return Math.round(value/10000).toLocaleString() + '만';
+        return value.toLocaleString();
+    }
+});
+
 let chartInstances = {};
 
 function renderDashboardAnalytics() {
