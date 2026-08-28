@@ -49,7 +49,7 @@ export async function onRequestPost(context) {
 
         if (!response.ok) {
             console.error("Gemini API Error:", data);
-            return new Response(JSON.stringify({ error: "AI API 호출 중 문제가 발생했습니다." }), {
+            return new Response(JSON.stringify({ error: `AI API 호출 실패: ${data.error?.message || '알 수 없는 오류 (API 키나 할당량을 확인하세요)'}` }), {
                 status: 500,
                 headers: { "Content-Type": "application/json" }
             });
