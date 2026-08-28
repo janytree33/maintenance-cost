@@ -10,6 +10,7 @@ if (SUPABASE_URL !== '여기에_SUPABASE_URL을_입력하세요') {
 // 1. 네비게이션(화면 전환) 로직
 // -----------------------------------------------------------------
 document.getElementById('menu-dashboard').addEventListener('click', (e) => { e.preventDefault(); switchView('view-dashboard'); });
+document.getElementById('menu-anomalies').addEventListener('click', (e) => { e.preventDefault(); switchView('view-anomalies'); });
 document.getElementById('menu-history').addEventListener('click', (e) => {
     e.preventDefault();
     switchView('view-history');
@@ -19,15 +20,21 @@ document.getElementById('menu-history').addEventListener('click', (e) => {
 function switchView(viewId) {
     // 상단 네비게이션 활성화 변경
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    const menuId = viewId === 'view-dashboard' ? 'menu-dashboard' : 'menu-history';
+    
+    let menuId = '';
+    if (viewId === 'view-dashboard') menuId = 'menu-dashboard';
+    else if (viewId === 'view-anomalies') menuId = 'menu-anomalies';
+    else if (viewId === 'view-history') menuId = 'menu-history';
+    
     document.getElementById(menuId)?.classList.add('active');
 
     // 뷰 숨기기 및 보이기
     document.getElementById('view-dashboard').classList.add('view-hidden');
+    document.getElementById('view-anomalies').classList.add('view-hidden');
     document.getElementById('view-history').classList.add('view-hidden');
-    document.getElementById('view-settings').classList.add('view-hidden');
     
-    document.getElementById(viewId).classList.remove('view-hidden');
+    const targetView = document.getElementById(viewId);
+    if (targetView) targetView.classList.remove('view-hidden');
 }
 
 
@@ -778,9 +785,12 @@ function checkAnomalies(sortedData, allRooms) {
         alertsContainer.style.display = 'flex';
         alertsContainer.style.flexDirection = 'column';
         alertsContainer.style.gap = '8px';
-        alertsContainer.style.marginBottom = '24px';
     } else {
-        alertsContainer.style.display = 'none';
+        alertsContainer.style.display = 'block';
+        alertsContainer.innerHTML = `<div class="empty-message" style="padding: 60px 0;">
+            <span class="material-symbols-rounded" style="font-size: 48px; color: #E4E5E8; margin-bottom: 16px; display: block;">task_alt</span>
+            이번 달에는 급등하거나 새로 추가된 청구 항목이 없습니다. ✨
+        </div>`;
     }
 }
 

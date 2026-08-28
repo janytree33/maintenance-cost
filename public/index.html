@@ -401,6 +401,7 @@
             </div>
             <nav class="top-nav">
                 <a href="#" class="nav-item active" id="menu-dashboard">대시보드 (통계)</a>
+                <a href="#" class="nav-item" id="menu-anomalies">AI 이상 감지</a>
                 <a href="#" class="nav-item" id="menu-history">명세서 내역</a>
             </nav>
         </div>
@@ -414,19 +415,26 @@
         </div>
     </header>
 
-    <!-- 우측 메인 영역 래퍼 제거 (body 직속으로 content-area 배치) -->
     <!-- 메인 컨텐츠 영역 -->
     <main class="content-area">
             
+            <!-- [NEW] AI 이상 감지 뷰 -->
+            <div id="view-anomalies" class="view-hidden">
+                <h1 class="page-title">AI 이상 감지 내역</h1>
+                <div class="jt-card">
+                    <p style="margin-top:0; margin-bottom: 24px; color:#5C6370; font-size:14px;">
+                        전월 대비 항목이 크게 급등하거나 신규로 발생한 청구 건을 자동으로 감지하여 알려드립니다.
+                    </p>
+                    <div id="anomalyAlertsContainer" style="display: none; flex-direction: column; gap: 8px;">
+                        <!-- 알람 메시지들이 이곳에 들어갑니다 -->
+                    </div>
+                </div>
+            </div>
+
             <!-- 1. 대시보드 뷰 (통계 & 업로드) -->
             <div id="view-dashboard">
                 <h1 class="page-title">대시보드</h1>
                 
-                <!-- [NEW] 이상 급등 알림 영역 -->
-                <div id="anomalyAlertsContainer" style="margin-bottom: 24px; display: none; flex-direction: column; gap: 8px;">
-                    <!-- 알람 메시지들이 이곳에 들어갑니다 -->
-                </div>
-
                 <!-- [NEW] 통계 차트 그리드 영역 -->
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
                     
